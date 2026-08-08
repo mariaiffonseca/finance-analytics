@@ -11,6 +11,7 @@
 # Android / Gradle
 android/**/build/
 android/.gradle/
+android/**/.kotlin/
 android/local.properties
 android/**/*.apk
 android/**/*.aab
