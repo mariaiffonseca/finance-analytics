@@ -67,7 +67,7 @@ Before opening a PR:
 
 - Run tests.
 - Check formatting.
-- Review against 04_FEATURE_REVIEW_CHECKLIST.md.
+- Review against 04_FEATURE_REVIEW_CHECKLIST.md (not yet created — planned for a future PR; skip this step until it exists).
 
 ---
 

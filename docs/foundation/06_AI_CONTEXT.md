@@ -81,8 +81,8 @@ Whenever new behaviour is introduced:
 1. 00_ENGINEERING_STACK.md
 2. 01_ANDROID_BLUEPRINT.md
 3. 02_ANDROID_ARCHITECTURE.md
-4. 03_ANDROID_FEATURE_TEMPLATE.md
-5. 04_FEATURE_REVIEW_CHECKLIST.md
+4. 03_ANDROID_FEATURE_TEMPLATE.md (not yet created — planned for a future PR)
+5. 04_FEATURE_REVIEW_CHECKLIST.md (not yet created — planned for a future PR)
 6. Current feature requirements
 
 ## Definition of Done

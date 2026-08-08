@@ -249,8 +249,8 @@ This document does not define:
 
 - 00_ENGINEERING_STACK.md
 - 01_ANDROID_BLUEPRINT.md
-- 03_ANDROID_FEATURE_TEMPLATE.md
-- 04_FEATURE_REVIEW_CHECKLIST.md
+- 03_ANDROID_FEATURE_TEMPLATE.md (not yet created — planned for a future PR)
+- 04_FEATURE_REVIEW_CHECKLIST.md (not yet created — planned for a future PR)
 - 06_AI_CONTEXT.md
 
 ---

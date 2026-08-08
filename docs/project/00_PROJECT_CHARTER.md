@@ -5,7 +5,7 @@
 | Project | Finance Analytics |
 | Version | 1.0.0 |
 | Status | Draft |
-| Owner | Maria Fonseca |
+| Owner | Maria Ines Fonseca |
 | Last Updated | 2026-08-08 |
 
 ## Purpose
