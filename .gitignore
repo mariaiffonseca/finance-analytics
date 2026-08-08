@@ -16,10 +16,10 @@ android/**/*.apk
 android/**/*.aab
 android/**/*.ap_
 android/**/*.dex
-android/captures/
-android/.cxx/
-android/*.keystore
-android/*.jks
+android/**/captures/
+android/**/.cxx/
+android/**/*.keystore
+android/**/*.jks
 
 # Python
 __pycache__/
@@ -35,6 +35,12 @@ python/dist/
 
 # Analytics / Jupyter
 .ipynb_checkpoints/
+
+# Local data & secrets
+*.duckdb
+*.sqlite
+*.sqlite3
+.streamlit/secrets.toml
 
 # Environment variables
 .env

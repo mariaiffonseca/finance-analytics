@@ -2,6 +2,7 @@
 
 > Version: 1.0
 > Status: Living Document
+> Last Updated: 2026-08-08
 
 ## Purpose
 Defines the engineering standards shared across all portfolio projects.
