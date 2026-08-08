@@ -64,7 +64,7 @@ model/
 FeatureModule.kt
 ```
 
-### presentation/
+## presentation/
 
 Contains:
 
@@ -74,7 +74,7 @@ Contains:
 - Events
 - Reusable UI components
 
-### data/
+## data/
 
 Contains:
 
@@ -83,7 +83,7 @@ Contains:
 - Local data source
 - Remote data source (if required)
 
-### model/
+## model/
 
 Contains domain models used by the feature.
 

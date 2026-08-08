@@ -25,6 +25,7 @@ Read these documents before starting:
 2. docs/foundation/01_ANDROID_BLUEPRINT.md
 3. docs/foundation/02_ANDROID_ARCHITECTURE.md
 4. docs/foundation/06_AI_CONTEXT.md
+5. docs/foundation/07_REPOSITORY_CONVENTIONS.md
 
 ---
 

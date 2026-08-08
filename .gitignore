@@ -30,8 +30,8 @@ venv/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
-python/build/
-python/dist/
+python/**/build/
+python/**/dist/
 
 # Analytics / Jupyter
 .ipynb_checkpoints/
@@ -40,7 +40,7 @@ python/dist/
 *.duckdb
 *.sqlite
 *.sqlite3
-.streamlit/secrets.toml
+**/.streamlit/secrets.toml
 
 # Environment variables
 .env

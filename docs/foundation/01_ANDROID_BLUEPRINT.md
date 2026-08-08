@@ -1,6 +1,6 @@
 # Android Blueprint
 
-> Version: 1.0
+> Version: 1.0.0
 > Status: Living Document
 > Last Updated: 2026-08-08
 
