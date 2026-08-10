@@ -1,5 +1,7 @@
 package com.mariafonseca.financeanalytics
 
+import androidx.annotation.StringRes
+
 data class PlaceholderUiState(
-    val message: String = "",
+    @param:StringRes val messageRes: Int,
 )

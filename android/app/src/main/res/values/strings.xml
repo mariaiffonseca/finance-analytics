@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Finance Analytics</string>
+    <string name="placeholder_message">Finance Analytics — foundation build</string>
 </resources>

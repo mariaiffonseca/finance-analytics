@@ -25,12 +25,9 @@ Read these documents before writing code:
 1. `docs/foundation/00_ENGINEERING_STACK.md`
 2. `docs/foundation/01_ANDROID_BLUEPRINT.md`
 3. `docs/foundation/02_ANDROID_ARCHITECTURE.md`
-4. `docs/foundation/03_ANDROID_FEATURE_TEMPLATE.md`
-5. `docs/foundation/04_FEATURE_REVIEW_CHECKLIST.md`
-6. `docs/foundation/06_AI_CONTEXT.md`
-7. `docs/foundation/07_REPOSITORY_CONVENTIONS.md`
-8. `docs/project/00_PROJECT_CHARTER.md`
-9. `docs/project/01_PRODUCT_PRINCIPLES.md`
+4. `docs/foundation/06_AI_CONTEXT.md`
+5. `docs/foundation/07_REPOSITORY_CONVENTIONS.md`
+6. `docs/project/00_PROJECT_CHARTER.md`
 
 ---
 
@@ -44,7 +41,7 @@ Read these documents before writing code:
 - Keep the foundation minimal.
 - Do not add libraries that are not required by this PR.
 - Use Gradle Version Catalog for dependency management.
-- Keep Android-specific code inside `apps/android/`.
+- Keep Android-specific code inside `android/`.
 
 ---
 
@@ -55,7 +52,7 @@ Read these documents before writing code:
 Create the Android application inside:
 
 ```text
-apps/android/
+android/
 ```
 
 The project must:

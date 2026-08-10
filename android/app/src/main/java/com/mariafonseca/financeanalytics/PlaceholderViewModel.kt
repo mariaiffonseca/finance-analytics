@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class PlaceholderViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(
-        PlaceholderUiState(message = "Finance Analytics — foundation build"),
+        PlaceholderUiState(messageRes = R.string.placeholder_message),
     )
     val uiState: StateFlow<PlaceholderUiState> = _uiState.asStateFlow()
 }
