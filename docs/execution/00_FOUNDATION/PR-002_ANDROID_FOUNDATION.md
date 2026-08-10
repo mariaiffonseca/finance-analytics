@@ -95,6 +95,7 @@ Establish the foundation for:
 
 ```text
 core/
+    analytics/
     common/
     database/
     designsystem/

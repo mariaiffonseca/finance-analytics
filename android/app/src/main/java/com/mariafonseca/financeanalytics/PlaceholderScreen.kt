@@ -12,6 +12,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.compose.composable
+import com.mariafonseca.financeanalytics.core.navigation.Destinations
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -32,5 +35,11 @@ fun PlaceholderScreen(
                 style = MaterialTheme.typography.titleLarge,
             )
         }
+    }
+}
+
+fun NavGraphBuilder.placeholderDestination() {
+    composable(Destinations.PLACEHOLDER_ROUTE) {
+        PlaceholderScreen()
     }
 }
