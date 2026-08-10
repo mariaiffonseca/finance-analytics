@@ -1,3 +1,4 @@
 <resources>
-    <color name="ic_launcher_background">#1B5E20</color>
+    <color name="brand_primary">#1B5E20</color>
+    <color name="ic_launcher_background">@color/brand_primary</color>
 </resources>

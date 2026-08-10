@@ -8,7 +8,6 @@ activityCompose = "1.12.3"
 composeBom = "2026.06.01"
 navigationCompose = "2.9.7"
 koin = "4.2.2"
-koinAndroidxCompose = "4.2.2"
 room = "2.8.4"
 retrofit = "2.12.0"
 okhttp = "5.4.0"
@@ -36,7 +35,7 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 
 koin-android = { group = "io.insert-koin", name = "koin-android", version.ref = "koin" }
-koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compose", version.ref = "koinAndroidxCompose" }
+koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compose", version.ref = "koin" }
 
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }

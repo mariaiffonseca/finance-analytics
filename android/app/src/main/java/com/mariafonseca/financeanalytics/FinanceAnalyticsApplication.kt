@@ -10,7 +10,9 @@ class FinanceAnalyticsApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         startKoin {
-            androidLogger()
+            if (BuildConfig.DEBUG) {
+                androidLogger()
+            }
             androidContext(this@FinanceAnalyticsApplication)
             modules(appModule)
         }
