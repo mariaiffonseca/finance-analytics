@@ -59,6 +59,7 @@ Defines the engineering standards shared across all portfolio projects.
 - Ruff
 - mypy
 - pre-commit
+- Android Lint (bundled with AGP) — static analysis for Kotlin/Android code
 
 ## Architectural Principles
 - Prefer pragmatic architecture.
