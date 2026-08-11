@@ -17,8 +17,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.mariafonseca.financeanalytics.R
+import com.mariafonseca.financeanalytics.core.designsystem.Space16
+import com.mariafonseca.financeanalytics.core.designsystem.Space24
 
 @Composable
 fun ImportStubScreen(
@@ -30,9 +31,9 @@ fun ImportStubScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(24.dp)
+                .padding(Space24)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+            verticalArrangement = Arrangement.spacedBy(Space16, Alignment.CenterVertically),
         ) {
             Text(
                 text = stringResource(R.string.import_stub_title),

@@ -13,4 +13,9 @@
     <string name="import_stub_body">The CSV import wizard is not implemented yet — this is a placeholder destination proving navigation reaches it.</string>
     <string name="action_continue">Continue</string>
     <string name="action_back">Back</string>
+
+    <string name="tab_overview">Overview</string>
+    <string name="tab_insights">Insights</string>
+    <string name="tab_transactions">Transactions</string>
+    <string name="stub_screen_coming_soon">%1$s — coming soon</string>
 </resources>

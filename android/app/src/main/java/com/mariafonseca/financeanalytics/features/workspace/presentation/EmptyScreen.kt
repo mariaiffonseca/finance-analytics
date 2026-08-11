@@ -29,6 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mariafonseca.financeanalytics.R
 import com.mariafonseca.financeanalytics.core.designsystem.LocalFinanceColors
+import com.mariafonseca.financeanalytics.core.designsystem.Space8
+import com.mariafonseca.financeanalytics.core.designsystem.Space12
+import com.mariafonseca.financeanalytics.core.designsystem.Space20
+import com.mariafonseca.financeanalytics.core.designsystem.Space24
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -44,7 +48,7 @@ fun EmptyScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = Space24)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.Center,
         ) {
@@ -54,14 +58,14 @@ fun EmptyScreen(
                 color = colors.accent,
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(Space20))
 
             Text(
                 text = stringResource(uiState.emptyStateHeadlineRes),
                 style = MaterialTheme.typography.headlineLarge,
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Space12))
 
             Text(
                 text = stringResource(uiState.emptyStateBodyRes),
@@ -69,17 +73,17 @@ fun EmptyScreen(
                 color = colors.textSecondary,
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(Space20))
             HorizontalDivider(thickness = 2.dp)
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(Space20))
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Space12)) {
                 uiState.privacyPointsRes.forEach { pointRes ->
                     PrivacyPointRow(text = stringResource(pointRes))
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Space24))
 
             Button(
                 onClick = onImportClick,
@@ -102,14 +106,14 @@ private fun PrivacyPointRow(text: String) {
     Row(verticalAlignment = Alignment.Top) {
         Spacer(
             modifier = Modifier
-                .padding(top = 7.dp)
+                .padding(top = Space8)
                 .size(6.dp)
                 .background(
                     color = colors.text,
                     shape = RoundedCornerShape(1.dp),
                 ),
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(Space8))
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,

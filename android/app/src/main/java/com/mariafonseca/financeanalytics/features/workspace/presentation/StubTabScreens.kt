@@ -1,5 +1,6 @@
 package com.mariafonseca.financeanalytics.features.workspace.presentation
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -7,25 +8,30 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.mariafonseca.financeanalytics.R
 
 @Composable
-private fun StubTabScreen(title: String) {
+private fun StubTabScreen(@StringRes titleRes: Int) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = "$title — coming soon", style = MaterialTheme.typography.titleLarge)
+        Text(
+            text = stringResource(R.string.stub_screen_coming_soon, stringResource(titleRes)),
+            style = MaterialTheme.typography.titleLarge,
+        )
     }
 }
 
 @Composable
 fun OverviewStubScreen() {
-    StubTabScreen(title = "Overview")
+    StubTabScreen(titleRes = R.string.tab_overview)
 }
 
 @Composable
 fun InsightsStubScreen() {
-    StubTabScreen(title = "Insights")
+    StubTabScreen(titleRes = R.string.tab_insights)
 }
 
 @Composable
 fun TransactionsStubScreen() {
-    StubTabScreen(title = "Transactions")
+    StubTabScreen(titleRes = R.string.tab_transactions)
 }
