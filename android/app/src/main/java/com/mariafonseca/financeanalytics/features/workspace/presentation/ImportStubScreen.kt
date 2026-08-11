@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import com.mariafonseca.financeanalytics.R
 import com.mariafonseca.financeanalytics.core.designsystem.Space16
 import com.mariafonseca.financeanalytics.core.designsystem.Space24
@@ -38,7 +37,6 @@ fun ImportStubScreen(
             Text(
                 text = stringResource(R.string.import_stub_title),
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
             )
             Text(
                 text = stringResource(R.string.import_stub_body),
