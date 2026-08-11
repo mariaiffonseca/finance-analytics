@@ -1,4 +1,21 @@
 <resources>
     <string name="app_name">Finance Analytics</string>
-    <string name="placeholder_message">Finance Analytics — foundation build</string>
+
+    <string name="empty_state_eyebrow">FINANCE ANALYTICS</string>
+    <string name="empty_state_headline">Understand where your money goes.</string>
+    <string name="empty_state_body">Import a CSV export from your bank and see patterns, trends and anomalies in your spending. No manual entry.</string>
+    <string name="privacy_point_on_device">Everything is analysed on this device</string>
+    <string name="privacy_point_no_bank">No bank connection or login required</string>
+    <string name="privacy_point_offline">Works fully offline once imported</string>
+    <string name="action_import_csv">Import CSV</string>
+
+    <string name="import_stub_title">Import transactions</string>
+    <string name="import_stub_body">The CSV import wizard is not implemented yet — this is a placeholder destination proving navigation reaches it.</string>
+    <string name="action_continue">Continue</string>
+    <string name="action_back">Back</string>
+
+    <string name="tab_overview">Overview</string>
+    <string name="tab_insights">Insights</string>
+    <string name="tab_transactions">Transactions</string>
+    <string name="stub_screen_coming_soon">%1$s — coming soon</string>
 </resources>

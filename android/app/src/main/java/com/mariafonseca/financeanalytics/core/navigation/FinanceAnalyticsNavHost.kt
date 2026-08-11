@@ -2,8 +2,11 @@ package com.mariafonseca.financeanalytics.core.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.mariafonseca.financeanalytics.placeholderDestination
+import com.mariafonseca.financeanalytics.features.workspace.presentation.AppShellScreen
+import com.mariafonseca.financeanalytics.features.workspace.presentation.EmptyScreen
+import com.mariafonseca.financeanalytics.features.workspace.presentation.ImportStubScreen
 
 @Composable
 fun FinanceAnalyticsNavHost() {
@@ -11,8 +14,23 @@ fun FinanceAnalyticsNavHost() {
 
     NavHost(
         navController = navController,
-        startDestination = Destinations.PLACEHOLDER_ROUTE,
+        startDestination = Destinations.EMPTY_ROUTE,
     ) {
-        placeholderDestination()
+        composable(Destinations.EMPTY_ROUTE) {
+            EmptyScreen(onImportClick = { navController.navigate(Destinations.IMPORT_ROUTE) })
+        }
+        composable(Destinations.IMPORT_ROUTE) {
+            ImportStubScreen(
+                onBack = { navController.popBackStack() },
+                onContinue = {
+                    navController.navigate(Destinations.APP_ROUTE) {
+                        popUpTo(Destinations.EMPTY_ROUTE) { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable(Destinations.APP_ROUTE) {
+            AppShellScreen()
+        }
     }
 }
