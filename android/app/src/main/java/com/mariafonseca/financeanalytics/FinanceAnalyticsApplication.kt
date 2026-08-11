@@ -1,6 +1,9 @@
 package com.mariafonseca.financeanalytics
 
 import android.app.Application
+import com.mariafonseca.financeanalytics.features.insights.insightsModule
+import com.mariafonseca.financeanalytics.features.overview.overviewModule
+import com.mariafonseca.financeanalytics.features.transactions.transactionsModule
 import com.mariafonseca.financeanalytics.features.workspace.workspaceModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -15,7 +18,7 @@ class FinanceAnalyticsApplication : Application() {
                 androidLogger()
             }
             androidContext(this@FinanceAnalyticsApplication)
-            modules(workspaceModule)
+            modules(workspaceModule, overviewModule, insightsModule, transactionsModule)
         }
     }
 }

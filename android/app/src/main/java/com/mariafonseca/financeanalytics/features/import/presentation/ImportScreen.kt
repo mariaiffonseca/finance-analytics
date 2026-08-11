@@ -1,4 +1,4 @@
-package com.mariafonseca.financeanalytics.features.workspace.presentation
+package com.mariafonseca.financeanalytics.features.`import`.presentation
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,8 +20,15 @@ import com.mariafonseca.financeanalytics.R
 import com.mariafonseca.financeanalytics.core.designsystem.Space16
 import com.mariafonseca.financeanalytics.core.designsystem.Space24
 
+/**
+ * Placeholder entry point for the CSV import flow. The real multi-step wizard
+ * (select/preview/validate/progress/done/error, see
+ * docs/project/05_DESIGN_SYSTEM.md section 21) is out of scope for this PR —
+ * this only proves the feature boundary and the navigation/state foundation
+ * needed to enter it (see FinanceAnalyticsNavHost's onContinue).
+ */
 @Composable
-fun ImportStubScreen(
+fun ImportScreen(
     onBack: () -> Unit,
     onContinue: () -> Unit,
 ) {

@@ -22,6 +22,9 @@ import androidx.navigation.compose.rememberNavController
 import com.mariafonseca.financeanalytics.R
 import com.mariafonseca.financeanalytics.core.designsystem.LocalFinanceColors
 import com.mariafonseca.financeanalytics.core.navigation.AppTabDestinations
+import com.mariafonseca.financeanalytics.features.insights.presentation.InsightsScreen
+import com.mariafonseca.financeanalytics.features.overview.presentation.OverviewScreen
+import com.mariafonseca.financeanalytics.features.transactions.presentation.TransactionsScreen
 
 private data class TabItem(
     val route: String,
@@ -82,9 +85,9 @@ fun AppShellScreen() {
             startDestination = AppTabDestinations.OVERVIEW_ROUTE,
             modifier = Modifier.padding(paddingValues),
         ) {
-            composable(AppTabDestinations.OVERVIEW_ROUTE) { OverviewStubScreen() }
-            composable(AppTabDestinations.INSIGHTS_ROUTE) { InsightsStubScreen() }
-            composable(AppTabDestinations.TRANSACTIONS_ROUTE) { TransactionsStubScreen() }
+            composable(AppTabDestinations.OVERVIEW_ROUTE) { OverviewScreen() }
+            composable(AppTabDestinations.INSIGHTS_ROUTE) { InsightsScreen() }
+            composable(AppTabDestinations.TRANSACTIONS_ROUTE) { TransactionsScreen() }
         }
     }
 }
