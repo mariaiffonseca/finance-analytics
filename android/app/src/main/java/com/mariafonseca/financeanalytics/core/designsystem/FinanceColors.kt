@@ -66,4 +66,6 @@ val DarkFinanceColors = FinanceColors(
     errorTint = DarkErrorTint,
 )
 
-val LocalFinanceColors = staticCompositionLocalOf { LightFinanceColors }
+val LocalFinanceColors = staticCompositionLocalOf<FinanceColors> {
+    error("No FinanceColors provided — wrap content in FinanceAnalyticsTheme.")
+}

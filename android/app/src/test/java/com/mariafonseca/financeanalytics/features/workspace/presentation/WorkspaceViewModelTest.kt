@@ -1,7 +1,7 @@
 package com.mariafonseca.financeanalytics.features.workspace.presentation
 
+import com.mariafonseca.financeanalytics.R
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WorkspaceViewModelTest {
@@ -12,7 +12,7 @@ class WorkspaceViewModelTest {
 
         val state = viewModel.uiState.value
 
-        assertEquals("Understand where your money goes.", state.emptyStateHeadline)
+        assertEquals(R.string.empty_state_headline, state.emptyStateHeadlineRes)
     }
 
     @Test
@@ -21,7 +21,6 @@ class WorkspaceViewModelTest {
 
         val state = viewModel.uiState.value
 
-        assertEquals(3, state.privacyPoints.size)
-        assertTrue(state.privacyPoints.all { it.isNotBlank() })
+        assertEquals(3, state.privacyPointsRes.size)
     }
 }

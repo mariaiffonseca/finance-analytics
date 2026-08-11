@@ -1,12 +1,14 @@
 package com.mariafonseca.financeanalytics.features.workspace.presentation
 
+import androidx.annotation.StringRes
+import com.mariafonseca.financeanalytics.R
+
 data class WorkspaceUiState(
-    val emptyStateHeadline: String = "Understand where your money goes.",
-    val emptyStateBody: String = "Import a CSV export from your bank and see " +
-        "patterns, trends and anomalies in your spending. No manual entry.",
-    val privacyPoints: List<String> = listOf(
-        "Everything is analysed on this device",
-        "No bank connection or login required",
-        "Works fully offline once imported",
+    @param:StringRes val emptyStateHeadlineRes: Int = R.string.empty_state_headline,
+    @param:StringRes val emptyStateBodyRes: Int = R.string.empty_state_body,
+    val privacyPointsRes: List<Int> = listOf(
+        R.string.privacy_point_on_device,
+        R.string.privacy_point_no_bank,
+        R.string.privacy_point_offline,
     ),
 )

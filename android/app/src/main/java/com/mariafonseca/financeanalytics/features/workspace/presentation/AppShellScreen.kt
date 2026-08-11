@@ -1,5 +1,6 @@
 package com.mariafonseca.financeanalytics.features.workspace.presentation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -7,6 +8,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -35,6 +37,11 @@ fun AppShellScreen() {
     val tabNavController = rememberNavController()
     val colors = LocalFinanceColors.current
 
+    // The outer NavHost clears Empty/Import from its back stack on entering the
+    // app phase, so without this a single system back-press here exits the app
+    // outright. There's no deeper navigation yet to fall back to, so swallow it.
+    BackHandler {}
+
     Scaffold(
         bottomBar = {
             val backStackEntry by tabNavController.currentBackStackEntryAsState()
@@ -43,9 +50,8 @@ fun AppShellScreen() {
             NavigationBar {
                 tabItems.forEach { tab ->
                     val selected = currentRoute?.hierarchy?.any { it.route == tab.route } == true
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
+                    val onClick = remember(tab.route) {
+                        {
                             tabNavController.navigate(tab.route) {
                                 popUpTo(tabNavController.graph.findStartDestination().id) {
                                     saveState = true
@@ -53,7 +59,11 @@ fun AppShellScreen() {
                                 launchSingleTop = true
                                 restoreState = true
                             }
-                        },
+                        }
+                    }
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick = onClick,
                         icon = {
                             val tint = if (selected) colors.accent else colors.textSecondary
                             tab.icon(tint)
