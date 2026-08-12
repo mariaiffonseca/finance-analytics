@@ -12,6 +12,15 @@ class OverviewViewModelTest {
 
         val state = viewModel.uiState.value
 
-        assertEquals(R.string.overview_title, state.titleRes)
+        assertEquals(R.string.tab_overview, state.titleRes)
+    }
+
+    @Test
+    fun `initial ui state exposes the overview placeholder message`() {
+        val viewModel = OverviewViewModel()
+
+        val state = viewModel.uiState.value
+
+        assertEquals(R.string.overview_placeholder_message, state.placeholderMessageRes)
     }
 }

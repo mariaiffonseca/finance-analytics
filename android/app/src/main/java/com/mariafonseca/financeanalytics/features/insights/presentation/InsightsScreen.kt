@@ -8,18 +8,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mariafonseca.financeanalytics.core.designsystem.LocalFinanceColors
 import com.mariafonseca.financeanalytics.core.designsystem.Space24
 import com.mariafonseca.financeanalytics.core.designsystem.Space8
-import com.mariafonseca.financeanalytics.core.designsystem.component.FilterChip
+import com.mariafonseca.financeanalytics.core.designsystem.component.FinanceFilterChip
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -41,12 +43,16 @@ fun InsightsScreen(viewModel: InsightsViewModel = koinViewModel()) {
 
             Spacer(modifier = Modifier.height(Space24))
 
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(Space8)) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(Space8),
+                modifier = Modifier.selectableGroup(),
+            ) {
                 items(uiState.filters) { filter ->
-                    FilterChip(
+                    val onFilterClick = remember(filter) { { viewModel.onFilterSelected(filter) } }
+                    FinanceFilterChip(
                         label = stringResource(filter.labelRes),
                         selected = filter == uiState.selectedFilter,
-                        onClick = { viewModel.onFilterSelected(filter) },
+                        onClick = onFilterClick,
                     )
                 }
             }

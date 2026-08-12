@@ -42,11 +42,11 @@ fun ImportScreen(
             verticalArrangement = Arrangement.spacedBy(Space16, Alignment.CenterVertically),
         ) {
             Text(
-                text = stringResource(R.string.import_stub_title),
+                text = stringResource(R.string.import_title),
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
-                text = stringResource(R.string.import_stub_body),
+                text = stringResource(R.string.import_body),
                 style = MaterialTheme.typography.bodyLarge,
             )
             Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {

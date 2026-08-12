@@ -12,6 +12,15 @@ class TransactionsViewModelTest {
 
         val state = viewModel.uiState.value
 
-        assertEquals(R.string.transactions_title, state.titleRes)
+        assertEquals(R.string.tab_transactions, state.titleRes)
+    }
+
+    @Test
+    fun `initial ui state exposes the transactions placeholder message`() {
+        val viewModel = TransactionsViewModel()
+
+        val state = viewModel.uiState.value
+
+        assertEquals(R.string.transactions_placeholder_message, state.placeholderMessageRes)
     }
 }

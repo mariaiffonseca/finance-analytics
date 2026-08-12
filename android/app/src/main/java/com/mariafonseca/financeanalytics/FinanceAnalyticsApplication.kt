@@ -1,6 +1,7 @@
 package com.mariafonseca.financeanalytics
 
 import android.app.Application
+import com.mariafonseca.financeanalytics.core.common.commonModule
 import com.mariafonseca.financeanalytics.features.insights.insightsModule
 import com.mariafonseca.financeanalytics.features.overview.overviewModule
 import com.mariafonseca.financeanalytics.features.transactions.transactionsModule
@@ -18,7 +19,7 @@ class FinanceAnalyticsApplication : Application() {
                 androidLogger()
             }
             androidContext(this@FinanceAnalyticsApplication)
-            modules(workspaceModule, overviewModule, insightsModule, transactionsModule)
+            modules(commonModule, workspaceModule, overviewModule, insightsModule, transactionsModule)
         }
     }
 }

@@ -20,7 +20,16 @@ class InsightsViewModelTest {
 
         val state = viewModel.uiState.value
 
-        assertEquals(InsightFilter.entries, state.filters)
+        assertEquals(
+            listOf(
+                InsightFilter.RECENT,
+                InsightFilter.SPENDING,
+                InsightFilter.TRENDS,
+                InsightFilter.ANOMALIES,
+                InsightFilter.RECURRING,
+            ),
+            state.filters,
+        )
     }
 
     @Test
