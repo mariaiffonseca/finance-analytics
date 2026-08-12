@@ -9,13 +9,23 @@
     <string name="privacy_point_offline">Works fully offline once imported</string>
     <string name="action_import_csv">Import CSV</string>
 
-    <string name="import_stub_title">Import transactions</string>
-    <string name="import_stub_body">The CSV import wizard is not implemented yet — this is a placeholder destination proving navigation reaches it.</string>
+    <string name="import_title">Import transactions</string>
+    <string name="import_body">The CSV import wizard is not implemented yet — this is a placeholder destination proving navigation reaches it.</string>
     <string name="action_continue">Continue</string>
     <string name="action_back">Back</string>
 
     <string name="tab_overview">Overview</string>
     <string name="tab_insights">Insights</string>
     <string name="tab_transactions">Transactions</string>
-    <string name="stub_screen_coming_soon">%1$s — coming soon</string>
+
+    <string name="overview_placeholder_message">Your spending overview will appear here once you import transactions.</string>
+
+    <string name="insights_placeholder_message">Insights will appear here once you import transactions.</string>
+    <string name="insight_filter_recent">Recent</string>
+    <string name="insight_filter_spending">Spending</string>
+    <string name="insight_filter_trends">Trends</string>
+    <string name="insight_filter_anomalies">Anomalies</string>
+    <string name="insight_filter_recurring">Recurring</string>
+
+    <string name="transactions_placeholder_message">Your transactions will appear here once you import data.</string>
 </resources>
