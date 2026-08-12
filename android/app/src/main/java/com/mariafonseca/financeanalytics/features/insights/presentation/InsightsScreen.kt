@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,41 +28,38 @@ fun InsightsScreen(viewModel: InsightsViewModel = koinViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val colors = LocalFinanceColors.current
 
-    Scaffold { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(Space24),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(Space24),
+    ) {
+        Text(
+            text = stringResource(uiState.titleRes),
+            style = MaterialTheme.typography.headlineSmall,
+        )
+
+        Spacer(modifier = Modifier.height(Space24))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(Space8),
+            modifier = Modifier.selectableGroup(),
         ) {
-            Text(
-                text = stringResource(uiState.titleRes),
-                style = MaterialTheme.typography.headlineSmall,
-            )
-
-            Spacer(modifier = Modifier.height(Space24))
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(Space8),
-                modifier = Modifier.selectableGroup(),
-            ) {
-                items(uiState.filters) { filter ->
-                    val onFilterClick = remember(filter) { { viewModel.onFilterSelected(filter) } }
-                    FinanceFilterChip(
-                        label = stringResource(filter.labelRes),
-                        selected = filter == uiState.selectedFilter,
-                        onClick = onFilterClick,
-                    )
-                }
+            items(uiState.filters) { filter ->
+                val onFilterClick = remember(filter) { { viewModel.onFilterSelected(filter) } }
+                FinanceFilterChip(
+                    label = stringResource(filter.labelRes),
+                    selected = filter == uiState.selectedFilter,
+                    onClick = onFilterClick,
+                )
             }
-
-            Spacer(modifier = Modifier.height(Space24))
-
-            Text(
-                text = stringResource(uiState.placeholderMessageRes),
-                style = MaterialTheme.typography.bodyLarge,
-                color = colors.textSecondary,
-            )
         }
+
+        Spacer(modifier = Modifier.height(Space24))
+
+        Text(
+            text = stringResource(uiState.placeholderMessageRes),
+            style = MaterialTheme.typography.bodyLarge,
+            color = colors.textSecondary,
+        )
     }
 }
