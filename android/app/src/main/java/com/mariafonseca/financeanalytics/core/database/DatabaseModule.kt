@@ -11,7 +11,12 @@ val databaseModule = module {
             androidContext(),
             FinanceAnalyticsDatabase::class.java,
             "finance_analytics.db",
-        ).build()
+        )
+            // No user-facing release has shipped yet, so there's no data to
+            // preserve across a schema change — this is the pre-release
+            // equivalent of a real Migration.
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .build()
     }
     single<TransactionDao> { get<FinanceAnalyticsDatabase>().transactionDao() }
 }

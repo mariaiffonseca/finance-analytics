@@ -16,6 +16,7 @@ sealed interface ImportFailureReason {
     data object EmptyFile : ImportFailureReason
     data object MalformedCsv : ImportFailureReason
     data class MissingColumns(val missing: List<String>) : ImportFailureReason
+    data object SaveError : ImportFailureReason
 }
 
 /** Select file -> Reading -> Validating -> Importing -> Completed/Failed (PR-006 section 9). */

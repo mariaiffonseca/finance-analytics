@@ -7,6 +7,8 @@ import com.mariafonseca.financeanalytics.features.`import`.model.ImportRowError
 import com.mariafonseca.financeanalytics.features.transactions.data.TransactionRepository
 import com.mariafonseca.financeanalytics.features.transactions.model.Transaction
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 
 /** Why an entire file was rejected, before any row-level validation could run. */
@@ -40,6 +42,12 @@ data class ParsedImport(
 class CsvImportPipeline(
     private val transactionRepository: TransactionRepository,
 ) {
+
+    // Guards the read-check-then-write in persist(): without it, two
+    // overlapping calls on this same (Koin-singleton) instance could both
+    // read the same existingKeys snapshot before either insert lands,
+    // letting the exact duplicates dedup is meant to prevent through.
+    private val persistMutex = Mutex()
 
     fun parseAndValidate(csvText: String): CsvParseOutcome {
         val rows = try {
@@ -92,7 +100,13 @@ class CsvImportPipeline(
      * amount on the same day are indistinguishable and will be treated as a
      * duplicate.
      */
-    suspend fun persist(parsedImport: ParsedImport): ImportResult {
+    suspend fun persist(parsedImport: ParsedImport): ImportResult = persistMutex.withLock {
+        // Re-fetches and re-maps every persisted transaction on every import
+        // (cost grows with lifetime transaction count, not file size) —
+        // acceptable at this app's expected scale, but a targeted
+        // date-range/key query would be needed if that stops being true.
+        // TransactionEntity also carries a unique index on this same key as
+        // a DB-level backstop in case this app-level check is ever bypassed.
         val existingKeys = transactionRepository.observeTransactions().first()
             .map { it.duplicateKey() }
             .toSet()
@@ -113,7 +127,7 @@ class CsvImportPipeline(
             transactionRepository.insertTransactions(toInsert)
         }
 
-        return ImportResult(
+        ImportResult(
             rowsRead = parsedImport.rowsRead,
             importedTransactions = toInsert,
             duplicateRowCount = duplicateCount,

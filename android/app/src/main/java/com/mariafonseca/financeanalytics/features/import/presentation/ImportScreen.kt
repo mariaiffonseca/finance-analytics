@@ -69,9 +69,9 @@ fun ImportScreen(
                     onChooseFile = { pickFile.launch("*/*") },
                     onBack = onBack,
                 )
-                is ImportUiState.Reading -> ProgressContent(R.string.import_reading, state.fileName)
-                is ImportUiState.Validating -> ProgressContent(R.string.import_validating, state.fileName)
-                is ImportUiState.Importing -> ProgressContent(R.string.import_importing, state.fileName)
+                is ImportUiState.Reading -> ProgressContent(R.string.import_reading, state.fileName, onBack)
+                is ImportUiState.Validating -> ProgressContent(R.string.import_validating, state.fileName, onBack)
+                is ImportUiState.Importing -> ProgressContent(R.string.import_importing, state.fileName, onBack)
                 is ImportUiState.Completed -> CompletedContent(
                     result = state.result,
                     onContinue = onContinue,
@@ -101,7 +101,7 @@ private fun SelectFileContent(onChooseFile: () -> Unit, onBack: () -> Unit) {
 }
 
 @Composable
-private fun ProgressContent(@StringRes labelRes: Int, fileName: String) {
+private fun ProgressContent(@StringRes labelRes: Int, fileName: String, onBack: () -> Unit) {
     val colors = LocalFinanceColors.current
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -111,6 +111,9 @@ private fun ProgressContent(@StringRes labelRes: Int, fileName: String) {
         CircularProgressIndicator(color = colors.accent)
         Text(text = stringResource(labelRes), style = MaterialTheme.typography.titleLarge)
         Text(text = fileName, style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary)
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), shape = SquareShape) {
+            Text(text = stringResource(R.string.action_back))
+        }
     }
 }
 
@@ -227,6 +230,7 @@ private fun failureMessage(reason: ImportFailureReason): String = when (reason) 
         R.string.import_error_missing_columns,
         reason.missing.joinToString(", "),
     )
+    ImportFailureReason.SaveError -> stringResource(R.string.import_error_save)
 }
 
 private const val MAX_VISIBLE_ROW_ERRORS = 5

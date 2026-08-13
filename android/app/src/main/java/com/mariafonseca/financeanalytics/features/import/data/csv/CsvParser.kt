@@ -28,11 +28,16 @@ object CsvParser {
         var currentRow = mutableListOf<String>()
         val field = StringBuilder()
         var inQuotes = false
+        // A `"` only opens quoted mode at the very start of a field — per
+        // RFC 4180, a quote elsewhere (e.g. `5'10" Store`) is just a literal
+        // character, not a quote-state toggle.
+        var atFieldStart = true
         var index = 0
 
         fun endField() {
             currentRow.add(field.toString())
             field.clear()
+            atFieldStart = true
         }
 
         fun endRow() {
@@ -52,11 +57,17 @@ object CsvParser {
                 }
                 inQuotes && char == QUOTE -> inQuotes = false
                 inQuotes -> field.append(char)
-                char == QUOTE -> inQuotes = true
+                char == QUOTE && atFieldStart -> {
+                    inQuotes = true
+                    atFieldStart = false
+                }
                 char == DELIMITER -> endField()
                 char == '\r' -> Unit
                 char == '\n' -> endRow()
-                else -> field.append(char)
+                else -> {
+                    field.append(char)
+                    atFieldStart = false
+                }
             }
             index++
         }

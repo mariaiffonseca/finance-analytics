@@ -1,5 +1,6 @@
 package com.mariafonseca.financeanalytics.features.`import`.presentation
 
+import android.database.SQLException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mariafonseca.financeanalytics.features.`import`.data.CsvFileSource
@@ -14,7 +15,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.yield
 import java.io.IOException
 
 class ImportViewModel(
@@ -30,36 +30,53 @@ class ImportViewModel(
     val uiState: StateFlow<ImportUiState> = _uiState.asStateFlow()
 
     fun onFileSelected(uriString: String) {
-        val fileName = csvFileSource.fileName(uriString)
-        if (!CsvFileSupport.isSupported(fileName)) {
-            _uiState.value = ImportUiState.Failed(ImportFailureReason.UnsupportedFileType)
-            return
-        }
-        val resolvedName = fileName.orEmpty()
-
         viewModelScope.launch {
-            // yield() after each transition, not just for the async steps: it
-            // gives collectors (Compose recomposition, tests) a chance to
-            // observe each state even though parsing/validation itself is
-            // synchronous — without it, back-to-back `_uiState.value =` sets
-            // would conflate and a fast phase could never be observed.
+            // fileName() can be a blocking ContentResolver query (a network
+            // round-trip for cloud-backed providers like Drive/Dropbox) and
+            // can throw SecurityException/IllegalArgumentException for a
+            // revoked or malformed URI, so it's offloaded and guarded just
+            // like readText() below rather than run inline on the caller's
+            // thread.
+            val fileName = try {
+                withContext(ioDispatcher) { csvFileSource.fileName(uriString) }
+            } catch (e: SecurityException) {
+                _uiState.value = ImportUiState.Failed(ImportFailureReason.FileReadError)
+                return@launch
+            } catch (e: IllegalArgumentException) {
+                _uiState.value = ImportUiState.Failed(ImportFailureReason.FileReadError)
+                return@launch
+            }
+            if (!CsvFileSupport.isSupported(fileName)) {
+                _uiState.value = ImportUiState.Failed(ImportFailureReason.UnsupportedFileType)
+                return@launch
+            }
+            val resolvedName = fileName.orEmpty()
+
             _uiState.value = ImportUiState.Reading(resolvedName)
-            yield()
             val csvText = try {
                 withContext(ioDispatcher) { csvFileSource.readText(uriString) }
             } catch (e: IOException) {
                 _uiState.value = ImportUiState.Failed(ImportFailureReason.FileReadError)
                 return@launch
+            } catch (e: SecurityException) {
+                _uiState.value = ImportUiState.Failed(ImportFailureReason.FileReadError)
+                return@launch
             }
 
             _uiState.value = ImportUiState.Validating(resolvedName)
-            yield()
-            when (val outcome = csvImportPipeline.parseAndValidate(csvText)) {
+            // Parsing/validation is CPU-bound (regex + BigDecimal + LocalDate
+            // parsing per row), so it's offloaded the same way readText() is
+            // rather than run inline on the Main dispatcher.
+            when (val outcome = withContext(ioDispatcher) { csvImportPipeline.parseAndValidate(csvText) }) {
                 is CsvParseOutcome.Rejected -> _uiState.value = ImportUiState.Failed(outcome.reason.toFailureReason())
                 is CsvParseOutcome.Parsed -> {
                     _uiState.value = ImportUiState.Importing(resolvedName)
-                    yield()
-                    val result = csvImportPipeline.persist(outcome.parsedImport)
+                    val result = try {
+                        withContext(ioDispatcher) { csvImportPipeline.persist(outcome.parsedImport) }
+                    } catch (e: SQLException) {
+                        _uiState.value = ImportUiState.Failed(ImportFailureReason.SaveError)
+                        return@launch
+                    }
                     _uiState.value = ImportUiState.Completed(result)
                 }
             }

@@ -1,9 +1,6 @@
 package com.mariafonseca.financeanalytics.features.`import`.data
 
-import com.mariafonseca.financeanalytics.features.transactions.data.TransactionRepository
-import com.mariafonseca.financeanalytics.features.transactions.model.Transaction
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.mariafonseca.financeanalytics.core.testing.FakeTransactionRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -91,26 +88,5 @@ class CsvImportPipelineTest {
         assertEquals(0, secondResult.importedCount)
         assertEquals(2, secondResult.duplicateRowCount)
         assertEquals(2, repository.insertedTransactions.size)
-    }
-}
-
-private class FakeTransactionRepository(
-    initialTransactions: List<Transaction> = emptyList(),
-) : TransactionRepository {
-
-    private val transactionsFlow = MutableStateFlow(initialTransactions)
-    val insertedTransactions: List<Transaction> get() = transactionsFlow.value
-
-    override fun observeTransactions(): Flow<List<Transaction>> = transactionsFlow
-
-    override suspend fun getTransaction(id: Long): Transaction? =
-        transactionsFlow.value.firstOrNull { it.id == id }
-
-    override suspend fun insertTransactions(transactions: List<Transaction>) {
-        transactionsFlow.value = transactionsFlow.value + transactions
-    }
-
-    override suspend fun deleteAllTransactions() {
-        transactionsFlow.value = emptyList()
     }
 }

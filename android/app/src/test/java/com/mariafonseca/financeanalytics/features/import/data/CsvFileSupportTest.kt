@@ -19,8 +19,12 @@ class CsvFileSupportTest {
     }
 
     @Test
-    fun `rejects a file with no extension or name`() {
+    fun `rejects a file with no extension`() {
         assertFalse(CsvFileSupport.isSupported("statement"))
-        assertFalse(CsvFileSupport.isSupported(null))
+    }
+
+    @Test
+    fun `treats an undeterminable name as supported rather than rejecting it`() {
+        assertTrue(CsvFileSupport.isSupported(null))
     }
 }

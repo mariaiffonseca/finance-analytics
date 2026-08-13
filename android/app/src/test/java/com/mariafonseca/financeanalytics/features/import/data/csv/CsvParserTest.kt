@@ -60,6 +60,22 @@ class CsvParserTest {
     }
 
     @Test
+    fun `a quote appearing mid-field is treated as a literal character, not a quote toggle`() {
+        val content = "Date,Merchant,Amount\n2026-08-01,5'10\" Store,-4.50\n2026-08-02,Bob's \"Diner\",-1.00\n"
+
+        val rows = CsvParser.parse(content)
+
+        assertEquals(
+            listOf(
+                listOf("Date", "Merchant", "Amount"),
+                listOf("2026-08-01", "5'10\" Store", "-4.50"),
+                listOf("2026-08-02", "Bob's \"Diner\"", "-1.00"),
+            ),
+            rows,
+        )
+    }
+
+    @Test
     fun `throws on an unterminated quoted value`() {
         val content = "Date,Merchant,Amount\n2026-08-01,\"Unterminated,-4.50\n"
 

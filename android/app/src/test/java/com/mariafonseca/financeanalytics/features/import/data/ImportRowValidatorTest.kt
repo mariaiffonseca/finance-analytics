@@ -133,6 +133,19 @@ class ImportRowValidatorTest {
     }
 
     @Test
+    fun `an earlier row rejected for a different reason still fixes the file's expected currency`() {
+        val validator = ImportRowValidator()
+        val invalidDateResult = validator.validate(2, listOf("bad-date", "A", "-1.00", "USD"), mappingWithCurrency)
+        assertTrue(invalidDateResult is ImportRowResult.Invalid)
+
+        val mismatch = validator.validate(3, listOf("2026-08-01", "B", "-1.00", "EUR"), mappingWithCurrency)
+        val accepted = validator.validate(4, listOf("2026-08-02", "C", "-1.00", "USD"), mappingWithCurrency)
+
+        assertEquals(ImportRowErrorReason.CURRENCY_MISMATCH, (mismatch as ImportRowResult.Invalid).error.reason)
+        assertTrue(accepted is ImportRowResult.Valid)
+    }
+
+    @Test
     fun `blank currency is invalid once the column is declared`() {
         val result = ImportRowValidator().validate(2, listOf("2026-08-01", "Merchant", "-4.50", ""), mappingWithCurrency)
 

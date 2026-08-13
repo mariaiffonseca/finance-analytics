@@ -1,5 +1,7 @@
 package com.mariafonseca.financeanalytics.features.`import`.presentation
 
+import android.database.SQLException
+import com.mariafonseca.financeanalytics.core.testing.FakeTransactionRepository
 import com.mariafonseca.financeanalytics.features.`import`.data.CsvFileSource
 import com.mariafonseca.financeanalytics.features.`import`.data.CsvImportPipeline
 import com.mariafonseca.financeanalytics.features.transactions.data.TransactionRepository
@@ -51,6 +53,7 @@ class ImportViewModelTest {
         val viewModel = buildViewModel(fileSource = fileSource)
 
         viewModel.onFileSelected(SOME_URI)
+        dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(ImportUiState.Failed(ImportFailureReason.UnsupportedFileType), viewModel.uiState.value)
         assertEquals(0, fileSource.readCount)
@@ -102,6 +105,33 @@ class ImportViewModelTest {
     }
 
     @Test
+    fun `a revoked read grant while resolving the file name becomes a file read error`() {
+        val fileSource = FakeCsvFileSource(name = "statement.csv", text = "irrelevant", failNameWith = SecurityException())
+        val viewModel = buildViewModel(fileSource = fileSource)
+
+        viewModel.onFileSelected(SOME_URI)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(ImportUiState.Failed(ImportFailureReason.FileReadError), viewModel.uiState.value)
+    }
+
+    @Test
+    fun `a persistence failure becomes a save error`() = runTest(dispatcher) {
+        val csv = "Date,Merchant,Amount\n2026-08-01,Coffee Shop,-4.50\n"
+        val fileSource = FakeCsvFileSource(name = "statement.csv", text = csv)
+        val viewModel = ImportViewModel(
+            csvFileSource = fileSource,
+            csvImportPipeline = CsvImportPipeline(ThrowingTransactionRepository()),
+            ioDispatcher = dispatcher,
+        )
+
+        viewModel.onFileSelected(SOME_URI)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(ImportUiState.Failed(ImportFailureReason.SaveError), viewModel.uiState.value)
+    }
+
+    @Test
     fun `a csv missing required columns fails with the missing columns`() {
         val fileSource = FakeCsvFileSource(name = "statement.csv", text = "Description,Value\nCoffee,-4.50\n")
         val viewModel = buildViewModel(fileSource = fileSource)
@@ -136,12 +166,16 @@ class ImportViewModelTest {
 private class FakeCsvFileSource(
     private val name: String?,
     private val text: String?,
+    private val failNameWith: Exception? = null,
 ) : CsvFileSource {
 
     var readCount = 0
         private set
 
-    override fun fileName(uriString: String): String? = name
+    override fun fileName(uriString: String): String? {
+        failNameWith?.let { throw it }
+        return name
+    }
 
     override fun readText(uriString: String): String {
         readCount++
@@ -149,19 +183,15 @@ private class FakeCsvFileSource(
     }
 }
 
-private class FakeTransactionRepository : TransactionRepository {
+private class ThrowingTransactionRepository : TransactionRepository {
 
-    private val transactionsFlow = MutableStateFlow<List<Transaction>>(emptyList())
-
-    override fun observeTransactions(): Flow<List<Transaction>> = transactionsFlow
+    override fun observeTransactions(): Flow<List<Transaction>> = MutableStateFlow(emptyList())
 
     override suspend fun getTransaction(id: Long): Transaction? = null
 
     override suspend fun insertTransactions(transactions: List<Transaction>) {
-        transactionsFlow.value = transactionsFlow.value + transactions
+        throw SQLException("disk I/O error")
     }
 
-    override suspend fun deleteAllTransactions() {
-        transactionsFlow.value = emptyList()
-    }
+    override suspend fun deleteAllTransactions() = Unit
 }

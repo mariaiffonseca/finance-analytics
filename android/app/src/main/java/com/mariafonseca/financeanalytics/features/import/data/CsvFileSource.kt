@@ -4,6 +4,8 @@ import android.content.ContentResolver
 import android.provider.OpenableColumns
 import androidx.core.net.toUri
 import java.io.IOException
+import java.io.InputStreamReader
+import java.nio.charset.CodingErrorAction
 
 /**
  * Reads a user-selected file through [android.content.ContentResolver]
@@ -32,7 +34,18 @@ class ContentResolverCsvFileSource(
                 if (nameIndex >= 0 && cursor.moveToFirst()) cursor.getString(nameIndex) else null
             }
 
-    override fun readText(uriString: String): String =
-        contentResolver.openInputStream(uriString.toUri())?.use { it.bufferedReader().readText() }
+    // Explicitly UTF-8, and strict about it: a non-UTF-8 export (e.g.
+    // Windows-1252/Latin-1, common in older European bank exports) throws
+    // here rather than silently decoding accented merchant names as
+    // mojibake. `MalformedInputException` is an `IOException`, so it
+    // surfaces through the same `ImportUiState.Failed(FileReadError)` path
+    // as any other read failure.
+    override fun readText(uriString: String): String {
+        val strictUtf8Decoder = Charsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+        return contentResolver.openInputStream(uriString.toUri())
+            ?.use { InputStreamReader(it, strictUtf8Decoder).readText() }
             ?: throw IOException("Unable to open the selected file")
+    }
 }
