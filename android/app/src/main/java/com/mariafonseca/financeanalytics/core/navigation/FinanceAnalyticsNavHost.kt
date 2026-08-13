@@ -36,6 +36,14 @@ fun FinanceAnalyticsNavHost() {
                         popUpTo(Destinations.EMPTY_ROUTE) { inclusive = true }
                     }
                 },
+                // Deliberately does not call onImportCompleted(): nothing was
+                // imported, so AppDataState stays NoData and AppShellScreen's
+                // own empty-state copy carries the "no data yet" messaging.
+                onSkip = {
+                    navController.navigate(Destinations.APP_ROUTE) {
+                        popUpTo(Destinations.EMPTY_ROUTE) { inclusive = true }
+                    }
+                },
             )
         }
         composable(Destinations.APP_ROUTE) {
