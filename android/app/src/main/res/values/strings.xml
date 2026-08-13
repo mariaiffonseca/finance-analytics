@@ -10,7 +10,26 @@
     <string name="action_import_csv">Import CSV</string>
 
     <string name="import_title">Import transactions</string>
-    <string name="import_body">The CSV import wizard is not implemented yet — this is a placeholder destination proving navigation reaches it.</string>
+    <string name="import_body">Select a CSV export from your bank. Everything is parsed and stored on this device.</string>
+    <string name="action_choose_csv_file">Choose CSV file</string>
+    <string name="import_reading">Reading file</string>
+    <string name="import_validating">Validating rows</string>
+    <string name="import_importing">Importing transactions</string>
+    <string name="import_completed_title">Import complete</string>
+    <string name="import_summary_rows_processed">Rows processed</string>
+    <string name="import_summary_imported">Transactions imported</string>
+    <string name="import_summary_duplicates">Duplicates skipped</string>
+    <string name="import_summary_invalid">Invalid rows</string>
+    <string name="import_row_error">Row %1$d: %2$s</string>
+    <string name="import_row_error_more">+%1$d more</string>
+    <string name="action_import_another_file">Import another file</string>
+    <string name="import_failed_title">Import failed</string>
+    <string name="import_error_unsupported_file_type">This file isn\'t a CSV export. Please choose a .csv file.</string>
+    <string name="import_error_file_read">The file couldn\'t be read. Please try selecting it again.</string>
+    <string name="import_error_empty_file">This file is empty.</string>
+    <string name="import_error_malformed_csv">This file isn\'t valid CSV — a quoted value is never closed.</string>
+    <string name="import_error_missing_columns">Missing required columns: %1$s. Expected Date, Merchant and Amount headers.</string>
+    <string name="action_try_again">Try again</string>
     <string name="action_continue">Continue</string>
     <string name="action_back">Back</string>
 
