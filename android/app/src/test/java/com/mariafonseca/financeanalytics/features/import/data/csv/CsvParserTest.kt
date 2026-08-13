@@ -51,12 +51,47 @@ class CsvParserTest {
     }
 
     @Test
-    fun `skips blank lines`() {
+    fun `preserves an interior blank line as a blank row so later row numbers stay aligned with the file`() {
         val content = "Date,Merchant,Amount\n2026-08-01,Coffee Shop,-4.50\n\n2026-08-02,Employer,1200.00\n"
 
         val rows = CsvParser.parse(content)
 
-        assertEquals(3, rows.size)
+        assertEquals(4, rows.size)
+        assertEquals(listOf(""), rows[2])
+        assertEquals(listOf("2026-08-02", "Employer", "1200.00"), rows[3])
+    }
+
+    @Test
+    fun `trims a single trailing blank line`() {
+        val content = "Date,Merchant,Amount\n2026-08-01,Coffee Shop,-4.50\n\n"
+
+        val rows = CsvParser.parse(content)
+
+        assertEquals(2, rows.size)
+    }
+
+    @Test
+    fun `strips a leading utf-8 byte order mark before header matching`() {
+        val content = "﻿Date,Merchant,Amount\n2026-08-01,Coffee Shop,-4.50\n"
+
+        val rows = CsvParser.parse(content)
+
+        assertEquals(listOf("Date", "Merchant", "Amount"), rows[0])
+    }
+
+    @Test
+    fun `a lone carriage return ends a row like old Mac-style line endings`() {
+        val content = "Date,Merchant,Amount\r2026-08-01,Coffee Shop,-4.50\r"
+
+        val rows = CsvParser.parse(content)
+
+        assertEquals(
+            listOf(
+                listOf("Date", "Merchant", "Amount"),
+                listOf("2026-08-01", "Coffee Shop", "-4.50"),
+            ),
+            rows,
+        )
     }
 
     @Test

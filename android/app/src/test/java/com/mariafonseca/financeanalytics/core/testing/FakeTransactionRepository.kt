@@ -4,6 +4,8 @@ import com.mariafonseca.financeanalytics.features.transactions.data.TransactionR
 import com.mariafonseca.financeanalytics.features.transactions.model.Transaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 /** Shared in-memory [TransactionRepository] test double, backed by a [MutableStateFlow]. */
 class FakeTransactionRepository(
@@ -14,6 +16,9 @@ class FakeTransactionRepository(
     val insertedTransactions: List<Transaction> get() = transactionsFlow.value
 
     override fun observeTransactions(): Flow<List<Transaction>> = transactionsFlow
+
+    override fun observeTransactions(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>> =
+        transactionsFlow.map { transactions -> transactions.filter { it.date in startDate..endDate } }
 
     override suspend fun getTransaction(id: Long): Transaction? =
         transactionsFlow.value.firstOrNull { it.id == id }

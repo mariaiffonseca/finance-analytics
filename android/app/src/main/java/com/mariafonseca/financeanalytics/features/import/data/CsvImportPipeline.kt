@@ -70,8 +70,16 @@ class CsvImportPipeline(
         val validator = ImportRowValidator()
         val validTransactions = mutableListOf<Transaction>()
         val invalidRows = mutableListOf<ImportRowError>()
+        var rowsRead = 0
 
+        // rowNumber comes from `index` into the *unfiltered* dataRows list
+        // (CsvParser now preserves interior blank lines instead of dropping
+        // them), so it always matches the line a user would see if they
+        // opened the file in a spreadsheet — a blank line is skipped here,
+        // not upstream, precisely so it doesn't shift every later row number.
         dataRows.forEachIndexed { index, values ->
+            if (values.all { it.isBlank() }) return@forEachIndexed
+            rowsRead++
             val rowNumber = index + 2 // +1 for 1-based numbering, +1 to account for the header row
             when (val result = validator.validate(rowNumber, values, mapping)) {
                 is ImportRowResult.Valid -> validTransactions += result.transaction
@@ -81,7 +89,7 @@ class CsvImportPipeline(
 
         return CsvParseOutcome.Parsed(
             ParsedImport(
-                rowsRead = dataRows.size,
+                rowsRead = rowsRead,
                 validTransactions = validTransactions,
                 invalidRows = invalidRows,
             ),
@@ -101,15 +109,19 @@ class CsvImportPipeline(
      * duplicate.
      */
     suspend fun persist(parsedImport: ParsedImport): ImportResult = persistMutex.withLock {
-        // Re-fetches and re-maps every persisted transaction on every import
-        // (cost grows with lifetime transaction count, not file size) —
-        // acceptable at this app's expected scale, but a targeted
-        // date-range/key query would be needed if that stops being true.
-        // TransactionEntity also carries a unique index on this same key as
-        // a DB-level backstop in case this app-level check is ever bypassed.
-        val existingKeys = transactionRepository.observeTransactions().first()
-            .map { it.duplicateKey() }
-            .toSet()
+        // Scoped to the batch's own date span rather than the whole table:
+        // cost grows with the file being imported, not with lifetime
+        // transaction count. TransactionEntity also carries a unique index
+        // on this same key as a DB-level backstop in case this app-level
+        // check is ever bypassed.
+        val batchDates = parsedImport.validTransactions.map { it.date }
+        val existingKeys = if (batchDates.isEmpty()) {
+            emptySet()
+        } else {
+            transactionRepository.observeTransactions(batchDates.min(), batchDates.max()).first()
+                .map { it.duplicateKey() }
+                .toSet()
+        }
         val seenKeys = mutableSetOf<DuplicateKey>()
         val toInsert = mutableListOf<Transaction>()
         var duplicateCount = 0
@@ -137,5 +149,9 @@ class CsvImportPipeline(
 
     private data class DuplicateKey(val date: LocalDate, val merchant: String, val amountMinorUnits: Long)
 
-    private fun Transaction.duplicateKey() = DuplicateKey(date, merchant, amount.minorUnits)
+    // Case-insensitive: the same merchant can arrive with different
+    // capitalization across exports (e.g. "STARBUCKS #123" vs
+    // "Starbucks #123"), and TransactionEntity's unique index matches this
+    // via NOCASE collation on the merchant column.
+    private fun Transaction.duplicateKey() = DuplicateKey(date, merchant.lowercase(), amount.minorUnits)
 }

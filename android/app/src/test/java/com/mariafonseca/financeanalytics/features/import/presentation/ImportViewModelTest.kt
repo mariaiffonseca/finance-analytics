@@ -22,6 +22,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.io.IOException
+import java.time.LocalDate
 
 private const val SOME_URI = "content://fake/statement.csv"
 
@@ -148,6 +149,8 @@ class ImportViewModelTest {
         val fileSource = FakeCsvFileSource(name = "statement.pdf", text = "irrelevant")
         val viewModel = buildViewModel(fileSource = fileSource)
         viewModel.onFileSelected(SOME_URI)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ImportUiState.Failed(ImportFailureReason.UnsupportedFileType), viewModel.uiState.value)
 
         viewModel.onRetry()
 
@@ -186,6 +189,9 @@ private class FakeCsvFileSource(
 private class ThrowingTransactionRepository : TransactionRepository {
 
     override fun observeTransactions(): Flow<List<Transaction>> = MutableStateFlow(emptyList())
+
+    override fun observeTransactions(startDate: LocalDate, endDate: LocalDate): Flow<List<Transaction>> =
+        MutableStateFlow(emptyList())
 
     override suspend fun getTransaction(id: Long): Transaction? = null
 

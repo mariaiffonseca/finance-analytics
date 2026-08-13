@@ -8,8 +8,10 @@ import com.mariafonseca.financeanalytics.features.`import`.data.CsvFileSupport
 import com.mariafonseca.financeanalytics.features.`import`.data.CsvImportPipeline
 import com.mariafonseca.financeanalytics.features.`import`.data.CsvParseOutcome
 import com.mariafonseca.financeanalytics.features.`import`.data.CsvRejectionReason
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,20 +31,27 @@ class ImportViewModel(
     private val _uiState = MutableStateFlow<ImportUiState>(ImportUiState.SelectingFile)
     val uiState: StateFlow<ImportUiState> = _uiState.asStateFlow()
 
+    // Cancelled and replaced on every call: without this, two rapid
+    // onFileSelected() invocations (e.g. a double-tap before the picker
+    // button is removed from composition) would run concurrently and race
+    // to write _uiState, so the screen could end up showing one file's
+    // "Reading" state after another file already reached "Completed".
+    private var importJob: Job? = null
+
     fun onFileSelected(uriString: String) {
-        viewModelScope.launch {
+        importJob?.cancel()
+        importJob = viewModelScope.launch {
             // fileName() can be a blocking ContentResolver query (a network
             // round-trip for cloud-backed providers like Drive/Dropbox) and
-            // can throw SecurityException/IllegalArgumentException for a
-            // revoked or malformed URI, so it's offloaded and guarded just
-            // like readText() below rather than run inline on the caller's
-            // thread.
+            // can throw for a revoked or malformed URI, or from a
+            // third-party provider's own bugs — caught broadly so it
+            // degrades to Failed like every other step here instead of
+            // crashing the app.
             val fileName = try {
                 withContext(ioDispatcher) { csvFileSource.fileName(uriString) }
-            } catch (e: SecurityException) {
-                _uiState.value = ImportUiState.Failed(ImportFailureReason.FileReadError)
-                return@launch
-            } catch (e: IllegalArgumentException) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: RuntimeException) {
                 _uiState.value = ImportUiState.Failed(ImportFailureReason.FileReadError)
                 return@launch
             }

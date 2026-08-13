@@ -146,6 +146,19 @@ class ImportRowValidatorTest {
     }
 
     @Test
+    fun `a blank currency on the first row does not permanently disable mismatch detection`() {
+        val validator = ImportRowValidator()
+        val blankCurrencyResult = validator.validate(2, listOf("2026-08-01", "A", "-1.00", ""), mappingWithCurrency)
+        assertEquals(ImportRowErrorReason.CURRENCY_MISMATCH, (blankCurrencyResult as ImportRowResult.Invalid).error.reason)
+
+        val firstRealCurrency = validator.validate(3, listOf("2026-08-02", "B", "-1.00", "EUR"), mappingWithCurrency)
+        val mismatch = validator.validate(4, listOf("2026-08-03", "C", "-1.00", "USD"), mappingWithCurrency)
+
+        assertTrue(firstRealCurrency is ImportRowResult.Valid)
+        assertEquals(ImportRowErrorReason.CURRENCY_MISMATCH, (mismatch as ImportRowResult.Invalid).error.reason)
+    }
+
+    @Test
     fun `blank currency is invalid once the column is declared`() {
         val result = ImportRowValidator().validate(2, listOf("2026-08-01", "Merchant", "-4.50", ""), mappingWithCurrency)
 

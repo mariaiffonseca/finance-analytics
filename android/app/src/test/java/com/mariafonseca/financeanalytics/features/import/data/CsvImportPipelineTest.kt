@@ -28,6 +28,20 @@ class CsvImportPipelineTest {
     }
 
     @Test
+    fun `an interior blank line does not shift the row numbers reported for later rows`() {
+        val pipeline = CsvImportPipeline(FakeTransactionRepository())
+        val csv = "Date,Merchant,Amount\n2026-08-01,Coffee Shop,-4.50\n\nnot-a-date,Broken Row,-1.00\n"
+
+        val outcome = pipeline.parseAndValidate(csv) as CsvParseOutcome.Parsed
+
+        assertEquals(2, outcome.parsedImport.rowsRead)
+        assertEquals(1, outcome.parsedImport.validTransactions.size)
+        assertEquals(1, outcome.parsedImport.invalidRows.size)
+        // Row 4 in the file: header(1), Coffee Shop(2), blank(3), Broken Row(4).
+        assertEquals(4, outcome.parsedImport.invalidRows.first().rowNumber)
+    }
+
+    @Test
     fun `rejects an empty file`() {
         val pipeline = CsvImportPipeline(FakeTransactionRepository())
 

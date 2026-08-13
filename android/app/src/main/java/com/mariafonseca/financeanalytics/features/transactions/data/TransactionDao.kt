@@ -2,6 +2,7 @@ package com.mariafonseca.financeanalytics.features.transactions.data
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
@@ -21,7 +22,12 @@ interface TransactionDao {
     @Query("SELECT COUNT(*) FROM transactions")
     suspend fun count(): Int
 
-    @Insert
+    // IGNORE rather than the default ABORT: CsvImportPipeline's app-level
+    // dedup already filters this list down to non-conflicting rows in the
+    // normal case, so this only matters for the unique-index backstop
+    // (date, merchant, amountMinorUnits) — and there it should drop just the
+    // colliding row, not roll back every other genuinely-new row in the batch.
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(transactions: List<TransactionEntity>)
 
     @Query("DELETE FROM transactions")

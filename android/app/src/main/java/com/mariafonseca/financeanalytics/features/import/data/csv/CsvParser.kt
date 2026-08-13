@@ -16,14 +16,30 @@ class CsvParseException(message: String) : Exception(message)
  * docs/execution/02_DATA_FOUNDATION/PR-006_CSV_IMPORT_INGESTION.md ("Do not
  * build a universal CSV parser"). Header detection and column mapping are
  * handled by the caller; this only turns text into rows of raw string
- * fields. Blank lines are skipped since bank exports commonly end with one.
+ * fields.
+ *
+ * A leading UTF-8 BOM is stripped (common in "CSV UTF-8" exports from
+ * Excel). `\r\n`, lone `\r` (old Mac-style) and lone `\n` all end a row.
+ *
+ * Interior blank lines are preserved as a row of blank values rather than
+ * silently dropped, so a row's position here — and the 1-based row number
+ * the caller derives from it — always matches the line a user would see if
+ * they opened the file in a spreadsheet; only a single trailing blank line
+ * is trimmed, since bank exports commonly end with one and it has no
+ * corresponding line a user would count.
  */
 object CsvParser {
 
     private const val DELIMITER = ','
     private const val QUOTE = '"'
+    private const val BYTE_ORDER_MARK_CODE_POINT = 0xFEFF
 
     fun parse(content: String): List<List<String>> {
+        val text = if (content.isNotEmpty() && content[0].code == BYTE_ORDER_MARK_CODE_POINT) {
+            content.substring(1)
+        } else {
+            content
+        }
         val rows = mutableListOf<List<String>>()
         var currentRow = mutableListOf<String>()
         val field = StringBuilder()
@@ -42,16 +58,14 @@ object CsvParser {
 
         fun endRow() {
             endField()
-            if (currentRow.size > 1 || currentRow[0].isNotBlank()) {
-                rows.add(currentRow)
-            }
+            rows.add(currentRow)
             currentRow = mutableListOf()
         }
 
-        while (index < content.length) {
-            val char = content[index]
+        while (index < text.length) {
+            val char = text[index]
             when {
-                inQuotes && char == QUOTE && index + 1 < content.length && content[index + 1] == QUOTE -> {
+                inQuotes && char == QUOTE && index + 1 < text.length && text[index + 1] == QUOTE -> {
                     field.append(QUOTE)
                     index++
                 }
@@ -62,7 +76,7 @@ object CsvParser {
                     atFieldStart = false
                 }
                 char == DELIMITER -> endField()
-                char == '\r' -> Unit
+                char == '\r' -> if (index + 1 >= text.length || text[index + 1] != '\n') endRow()
                 char == '\n' -> endRow()
                 else -> {
                     field.append(char)
@@ -77,6 +91,9 @@ object CsvParser {
         }
         if (field.isNotEmpty() || currentRow.isNotEmpty()) {
             endRow()
+        }
+        if (rows.isNotEmpty() && rows.last().all { it.isBlank() }) {
+            rows.removeAt(rows.lastIndex)
         }
         return rows
     }

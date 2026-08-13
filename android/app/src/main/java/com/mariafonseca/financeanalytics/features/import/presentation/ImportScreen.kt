@@ -45,6 +45,7 @@ private val SquareShape = RoundedCornerShape(0.dp)
 fun ImportScreen(
     onBack: () -> Unit,
     onContinue: () -> Unit,
+    onSkip: () -> Unit,
     viewModel: ImportViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -81,6 +82,7 @@ fun ImportScreen(
                     reason = state.reason,
                     onRetry = viewModel::onRetry,
                     onBack = onBack,
+                    onSkip = onSkip,
                 )
             }
         }
@@ -110,7 +112,15 @@ private fun ProgressContent(@StringRes labelRes: Int, fileName: String, onBack: 
     ) {
         CircularProgressIndicator(color = colors.accent)
         Text(text = stringResource(labelRes), style = MaterialTheme.typography.titleLarge)
-        Text(text = fileName, style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary)
+        Text(
+            // Blank when the content provider never populated
+            // OpenableColumns.DISPLAY_NAME — CsvFileSupport intentionally
+            // still allows the import to proceed, so this needs its own
+            // fallback rather than showing a blank line.
+            text = fileName.ifBlank { stringResource(R.string.import_unnamed_file) },
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textSecondary,
+        )
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), shape = SquareShape) {
             Text(text = stringResource(R.string.action_back))
         }
@@ -190,7 +200,7 @@ private fun SummaryRow(@StringRes labelRes: Int, value: String) {
 }
 
 @Composable
-private fun FailedContent(reason: ImportFailureReason, onRetry: () -> Unit, onBack: () -> Unit) {
+private fun FailedContent(reason: ImportFailureReason, onRetry: () -> Unit, onBack: () -> Unit, onSkip: () -> Unit) {
     val colors = LocalFinanceColors.current
 
     Column(
@@ -217,6 +227,12 @@ private fun FailedContent(reason: ImportFailureReason, onRetry: () -> Unit, onBa
     }
     OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), shape = SquareShape) {
         Text(text = stringResource(R.string.action_back))
+    }
+    // Escape hatch for a file that will never validate (wrong headers,
+    // unsupported encoding, ...): without this, Back only reaches
+    // EmptyScreen, whose sole action re-enters this same Failed loop.
+    OutlinedButton(onClick = onSkip, modifier = Modifier.fillMaxWidth(), shape = SquareShape) {
+        Text(text = stringResource(R.string.action_skip_import))
     }
 }
 

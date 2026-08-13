@@ -36,7 +36,6 @@ sealed interface ImportRowResult {
 class ImportRowValidator {
 
     private var expectedCurrency: String? = null
-    private var currencyCaptured = false
 
     fun validate(rowNumber: Int, values: List<String>, mapping: ImportColumnMapping): ImportRowResult {
         val date = values.getOrNull(mapping.dateColumn)?.trim().orEmpty()
@@ -49,12 +48,15 @@ class ImportRowValidator {
             ?.let { values.getOrNull(it)?.trim() }
             ?.takeUnless { it.isEmpty() }
 
-        // Captured before any row is rejected, so the file's literal first
-        // row determines `expectedCurrency` even when that same row is later
-        // rejected for an unrelated reason (bad date, missing merchant, ...).
-        if (mapping.currencyColumn != null && !currencyCaptured) {
+        // Captured from the first row with a non-blank currency value, even
+        // when that row is later rejected for an unrelated reason (bad date,
+        // missing merchant, ...) — but a row with a *blank* currency is
+        // always invalid on its own (see the check below) regardless of
+        // this state, so it must never be the one to "lock in" a null
+        // baseline that would silently disable mismatch detection for
+        // every row after it.
+        if (mapping.currencyColumn != null && expectedCurrency == null && currency != null) {
             expectedCurrency = currency
-            currencyCaptured = true
         }
 
         if (date.isEmpty()) return invalid(rowNumber, ImportRowErrorReason.MISSING_DATE, "Date is required")

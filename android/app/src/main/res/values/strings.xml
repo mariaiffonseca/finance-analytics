@@ -30,7 +30,9 @@
     <string name="import_error_malformed_csv">This file isn\'t valid CSV — a quoted value is never closed.</string>
     <string name="import_error_missing_columns">Missing required columns: %1$s. Expected Date, Merchant and Amount headers.</string>
     <string name="import_error_save">Transactions couldn\'t be saved. Please try again.</string>
+    <string name="import_unnamed_file">your file</string>
     <string name="action_try_again">Try again</string>
+    <string name="action_skip_import">Continue without importing</string>
     <string name="action_continue">Continue</string>
     <string name="action_back">Back</string>
 
