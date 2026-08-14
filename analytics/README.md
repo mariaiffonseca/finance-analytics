@@ -2,9 +2,11 @@
 
 Python workspace for analysing transaction data exported from the Finance
 Analytics Android application. This is the analytics **foundation**: CSV
-loading, schema validation, data-quality reporting, and DuckDB querying. It
-does not implement machine learning, forecasting, anomaly detection or any
-other insight generation — see [Out of scope](#out-of-scope).
+loading, schema validation, data-quality reporting, DuckDB querying, and
+exploratory data analysis of transaction behaviour (temporal, category,
+merchant, outlier and recurring-transaction candidates). It does not
+implement machine learning, forecasting, production anomaly detection or
+any other insight generation — see [Out of scope](#out-of-scope).
 
 This workspace is independent from the Android application: no shared code,
 no runtime integration. It reads CSV exports, nothing else.
@@ -32,13 +34,20 @@ will be added in the PR that first implements a model.
 analytics/
 ├── pyproject.toml           Dependencies, tool config (uv-managed)
 ├── notebooks/
-│   └── 01_data_quality_and_overview.ipynb
+│   ├── 01_data_quality_and_overview.ipynb
+│   └── 02_exploratory_data_analysis.ipynb
 ├── src/finance_analytics/
 │   ├── io/csv.py             CSV → DataFrame loading
 │   ├── validation/transactions.py   Schema validation
 │   ├── data/schema.py        Expected transaction columns
 │   ├── data/quality.py       Data-quality report
-│   └── duckdb_queries.py     DuckDB registration + demo queries
+│   ├── duckdb_queries.py     DuckDB registration + demo queries
+│   └── analysis/              Exploratory analysis building blocks
+│       ├── temporal.py        Calendar feature generation
+│       ├── category.py        Category-level aggregation
+│       ├── merchant.py        Merchant-level aggregation
+│       ├── outliers.py        IQR / robust z-score / category-relative outlier flags
+│       └── recurring.py       Recurring-transaction candidate table
 ├── tests/                    pytest suite (+ tests/fixtures/ CSVs)
 └── data/
     ├── raw/                  Untouched CSV exports (gitignored except the sample fixture)
@@ -78,23 +87,34 @@ uv run ruff check .
 uv run ruff format .
 ```
 
-## Running the notebook
+## Running the notebooks
 
 ```bash
 cd analytics
 uv run jupyter lab
 ```
 
-Open `notebooks/01_data_quality_and_overview.ipynb` and run all cells. It
-loads `data/raw/finance_analytics_test_transactions.csv` — a synthetic
-fixture that includes a duplicate transaction and a few deliberately invalid
-rows so the validation and data-quality steps have something to report.
+Both notebooks load `data/raw/finance_analytics_test_transactions.csv` — a
+synthetic fixture that includes a duplicate transaction and a few
+deliberately invalid rows so the validation and data-quality steps have
+something to report.
+
+- `notebooks/01_data_quality_and_overview.ipynb` — load, validate,
+  data-quality report, first descriptive look.
+- `notebooks/02_exploratory_data_analysis.ipynb` — exploratory analysis of
+  transaction behaviour (temporal, category, merchant, distribution,
+  outliers, recurring-transaction candidates, income/savings) framed as
+  research questions with evidence-based findings. Built on the same
+  fixture as notebook 01 — a 22-row, 46-day dataset — so most sections
+  explicitly caveat what can and can't be concluded at that size; see its
+  own "Limitations" section for details.
 
 To reproduce non-interactively:
 
 ```bash
 cd analytics
-uv run jupyter execute notebooks/01_data_quality_and_overview.ipynb
+uv run jupyter execute --inplace notebooks/01_data_quality_and_overview.ipynb
+uv run jupyter execute --inplace notebooks/02_exploratory_data_analysis.ipynb
 ```
 
 ## Reproducibility
@@ -102,7 +122,7 @@ uv run jupyter execute notebooks/01_data_quality_and_overview.ipynb
 ```text
 uv sync                 install dependencies
 uv run pytest           run tests
-uv run jupyter lab      open notebook
+uv run jupyter lab      open notebooks
                          load data/raw/finance_analytics_test_transactions.csv
                          re-run all cells to reproduce results
 ```
@@ -121,6 +141,12 @@ uv run jupyter lab      open notebook
   `io.csv` only parses; `validation.transactions` only checks structure
   against the expected schema; `data.quality` only summarises. Each is
   usable independently of the notebook and of each other.
+- **`analysis/*` functions are expense-scoped by default.** `category`,
+  `merchant`, `outliers` and `recurring` all analyse spending, so `Income`
+  rows (positive amounts) are excluded from their aggregations rather than
+  distorting a "what drives spending" view with a fundamentally different
+  kind of transaction. Callers who need income included work from the raw
+  DataFrame or `duckdb_queries` directly.
 - **`docs/project/02_DOMAIN_MODEL.md` does not exist yet** in this
   repository. `src/finance_analytics/data/schema.py` uses the transaction
   concepts listed directly in PR-007
@@ -129,8 +155,9 @@ uv run jupyter lab      open notebook
 
 ## Out of scope
 
-Not implemented in this workspace (see PR-007 for the full list):
-machine learning, anomaly detection, forecasting, clustering, recurring-
-payment detection, merchant normalisation, automated categorisation,
-LLM-generated insights, recommendations, production dashboard analytics,
-Android/Python runtime integration, backend/API, cloud data storage.
+Not implemented in this workspace (see PR-007/PR-008 for the full list):
+machine learning, production anomaly detection, forecasting, clustering,
+the final recurring-payment detector, merchant normalisation, automated
+categorisation, LLM-generated insights, recommendations, production
+dashboard analytics, Android/Python runtime integration, backend/API,
+cloud data storage.
