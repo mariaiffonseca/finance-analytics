@@ -37,6 +37,15 @@ python/**/dist/
 # Analytics / Jupyter
 .ipynb_checkpoints/
 
+# Analytics data — private financial data must never be committed.
+# The synthetic sample fixture used by the notebook/tests is the one
+# explicit exception; see analytics/data/README.md.
+analytics/data/raw/*
+analytics/data/processed/*
+!analytics/data/raw/.gitkeep
+!analytics/data/raw/finance_analytics_test_transactions.csv
+!analytics/data/processed/.gitkeep
+
 # Local data & secrets
 *.duckdb
 *.duckdb.wal

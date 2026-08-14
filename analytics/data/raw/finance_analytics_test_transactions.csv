@@ -1,0 +1,23 @@
+id,date,amount,currency,description,merchant,category,account
+1,2026-02-02,-12.50,EUR,Morning coffee,Coffee Corner,Food & Dining,Main Account
+2,2026-02-03,-54.90,EUR,Weekly groceries,Continente,Groceries,Main Account
+3,2026-02-05,-29.99,EUR,Monthly subscription,Spotify,Subscriptions,Main Account
+4,2026-02-07,-82.40,EUR,Dinner with friends,O Pescador,Food & Dining,Main Account
+5,2026-02-10,-45.00,EUR,Electricity bill,EDP,Utilities,Main Account
+6,2026-02-12,-18.75,EUR,Pharmacy,Farmácia Central,Health,Main Account
+7,2026-02-15,-120.00,EUR,Train tickets,CP,Transport,Main Account
+8,2026-02-18,-642.50,EUR,"Flight, Lisbon to Rome",TAP Air,Travel,Main Account
+9,2026-02-20,-899.00,EUR,New laptop purchase,MediaMarkt,Shopping,Main Account
+10,2026-02-22,-8.20,EUR,"Lunch, ""daily menu""",Café Central,Food & Dining,Main Account
+11,2026-02-24,-15.99,EUR,Monthly subscription,Netflix,Subscriptions,Main Account
+12,2026-02-28,3450.00,EUR,Monthly salary,Employer Payroll,Income,Main Account
+13,2026-03-03,-61.30,EUR,Weekly groceries,Continente,Groceries,Main Account
+14,2026-03-05,-29.99,EUR,Monthly subscription,Spotify,Subscriptions,Main Account
+15,2026-03-08,-37.80,EUR,Restaurant dinner,O Pescador,Food & Dining,Main Account
+16,2026-03-10,-100.00,EUR,ATM withdrawal,ATM,Cash,Main Account
+17,2026-03-12,-22.40,EUR,Fuel,Galp,Transport,Main Account
+18,2026-03-15,500.00,EUR,Freelance payment,Freelance Client,Income,Main Account
+14,2026-03-05,-29.99,EUR,Monthly subscription,Spotify,Subscriptions,Main Account
+19,not-a-date,-20.00,EUR,Invalid date test,Test Merchant,Shopping,Main Account
+20,2026-03-18,not-an-amount,EUR,Invalid amount test,Test Merchant,Shopping,Main Account
+21,2026-03-19,-10.00,EUR,Missing merchant test,,Shopping,Main Account
