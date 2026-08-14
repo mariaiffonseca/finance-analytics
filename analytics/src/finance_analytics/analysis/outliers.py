@@ -43,6 +43,31 @@ def robust_zscores(values: pd.Series) -> pd.Series:
     return (values - median) / (mad * _MAD_TO_STD)
 
 
+def robust_zscore_of(value: float, median: float, mad: float) -> float:
+    """Robust z-score of a single `value` against a precomputed median/MAD.
+
+    Unlike `robust_zscores`, the reference statistics are passed in directly
+    rather than derived from a series that includes `value` itself. This is
+    what lets a caller score a transaction against a *history that excludes
+    it* (PR-009's historical-context requirement) instead of against a
+    distribution it helped shape.
+
+    A MAD of zero means the reference history had no variation at all (e.g.
+    a subscription charged the exact same amount every time). A `value`
+    that still matches it is unremarkable (score `0.0`); one that doesn't is
+    a sharper break from a perfectly stable pattern than any finite z-score
+    could represent, so it is scored as `+inf`/`-inf` rather than silently
+    suppressed to 0 the way a naive division guard would.
+    """
+    if pd.isna(median) or pd.isna(mad):
+        return float("nan")
+    if mad == 0:
+        if value == median:
+            return 0.0
+        return float("inf") if value > median else float("-inf")
+    return (value - median) / (mad * _MAD_TO_STD)
+
+
 def flag_category_relative_outliers(
     frame: pd.DataFrame,
     amount_column: str = "amount",
