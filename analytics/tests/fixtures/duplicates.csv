@@ -1,0 +1,5 @@
+id,date,amount,currency,description,merchant,category,account
+1,2026-01-05,-12.50,EUR,Coffee,Coffee Corner,Food & Dining,Main Account
+2,2026-01-06,-40.00,EUR,Groceries,Continente,Groceries,Main Account
+2,2026-01-06,-40.00,EUR,Groceries,Continente,Groceries,Main Account
+3,2026-01-10,,EUR,Salary,Employer Payroll,Income,Main Account
