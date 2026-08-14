@@ -2,11 +2,13 @@
 
 Python workspace for analysing transaction data exported from the Finance
 Analytics Android application. This is the analytics **foundation**: CSV
-loading, schema validation, data-quality reporting, DuckDB querying, and
+loading, schema validation, data-quality reporting, DuckDB querying,
 exploratory data analysis of transaction behaviour (temporal, category,
-merchant, outlier and recurring-transaction candidates). It does not
-implement machine learning, forecasting, production anomaly detection or
-any other insight generation — see [Out of scope](#out-of-scope).
+merchant, outlier and recurring-transaction candidates), and a first
+analytical feature — transaction anomaly detection, a non-ML, deterministic
+baseline (see `src/finance_analytics/anomalies/`). It does not implement
+machine learning, forecasting, or any other insight generation — see
+[Out of scope](#out-of-scope).
 
 This workspace is independent from the Android application: no shared code,
 no runtime integration. It reads CSV exports, nothing else.
@@ -25,8 +27,11 @@ no runtime integration. It reads CSV exports, nothing else.
 
 Scikit-learn is part of the project's overall analytics stack but is
 intentionally **not** a dependency of this workspace yet — no ML is
-implemented in this PR, and adding it now would be an unused dependency. It
-will be added in the PR that first implements a model.
+implemented, and adding it now would be an unused dependency.
+`sklearn.ensemble.IsolationForest` was considered for anomaly detection and
+rejected: the available fixture (18 clean transactions) is far too small to
+train or validate a model against. Scikit-learn will be added in the PR
+that first has enough data to justify a model.
 
 ## Project layout
 
@@ -35,19 +40,24 @@ analytics/
 ├── pyproject.toml           Dependencies, tool config (uv-managed)
 ├── notebooks/
 │   ├── 01_data_quality_and_overview.ipynb
-│   └── 02_exploratory_data_analysis.ipynb
+│   ├── 02_exploratory_data_analysis.ipynb
+│   └── 03_anomaly_detection.ipynb
 ├── src/finance_analytics/
 │   ├── io/csv.py             CSV → DataFrame loading
 │   ├── validation/transactions.py   Schema validation
 │   ├── data/schema.py        Expected transaction columns
 │   ├── data/quality.py       Data-quality report
 │   ├── duckdb_queries.py     DuckDB registration + demo queries
-│   └── analysis/              Exploratory analysis building blocks
-│       ├── temporal.py        Calendar feature generation
-│       ├── category.py        Category-level aggregation
-│       ├── merchant.py        Merchant-level aggregation
-│       ├── outliers.py        IQR / robust z-score / category-relative outlier flags
-│       └── recurring.py       Recurring-transaction candidate table
+│   ├── analysis/              Exploratory analysis building blocks
+│   │   ├── temporal.py        Calendar feature generation
+│   │   ├── category.py        Category-level aggregation
+│   │   ├── merchant.py        Merchant-level aggregation
+│   │   ├── outliers.py        IQR / robust z-score / category-relative outlier flags
+│   │   └── recurring.py       Recurring-transaction candidate table
+│   └── anomalies/              Transaction anomaly detection (PR-009)
+│       ├── features.py         Historical, leakage-free merchant/category/global stats
+│       ├── detector.py         AnomalyResult + hierarchical robust-z detection
+│       └── explanations.py     Deterministic, template-based explanation text
 ├── tests/                    pytest suite (+ tests/fixtures/ CSVs)
 └── data/
     ├── raw/                  Untouched CSV exports (gitignored except the sample fixture)
@@ -94,8 +104,8 @@ cd analytics
 uv run jupyter lab
 ```
 
-Both notebooks load `data/raw/finance_analytics_test_transactions.csv` — a
-synthetic fixture that includes a duplicate transaction and a few
+All three notebooks load `data/raw/finance_analytics_test_transactions.csv`
+— a synthetic fixture that includes a duplicate transaction and a few
 deliberately invalid rows so the validation and data-quality steps have
 something to report.
 
@@ -108,6 +118,11 @@ something to report.
   fixture as notebook 01 — a 22-row, 46-day dataset — so most sections
   explicitly caveat what can and can't be concluded at that size; see its
   own "Limitations" section for details.
+- `notebooks/03_anomaly_detection.ipynb` — applies notebook 02's findings
+  to select and justify a transaction anomaly detection method, then runs
+  it on the clean fixture with controlled synthetic validation cases and a
+  false-positive inspection. See its "Limitations" section — the same
+  18-row dataset limits what this result generalises to.
 
 To reproduce non-interactively:
 
@@ -115,6 +130,7 @@ To reproduce non-interactively:
 cd analytics
 uv run jupyter execute --inplace notebooks/01_data_quality_and_overview.ipynb
 uv run jupyter execute --inplace notebooks/02_exploratory_data_analysis.ipynb
+uv run jupyter execute --inplace notebooks/03_anomaly_detection.ipynb
 ```
 
 ## Reproducibility
@@ -152,12 +168,30 @@ uv run jupyter lab      open notebooks
   concepts listed directly in PR-007
   (`id, date, amount, currency, description, merchant, category, account`)
   as the schema source of truth instead.
+- **Anomaly detection is a hierarchical, historical robust z-score, not
+  ML.** `anomalies/detector.py` scores each transaction against the most
+  specific baseline with enough prior history to trust it — merchant, then
+  category, then a global fallback, then `insufficient_history` if none
+  qualify — using the same median/MAD estimator PR-008's EDA validated for
+  this data's skew. Every baseline is built only from transactions strictly
+  before the one being scored (`anomalies/features.py`), so a transaction
+  never influences its own baseline. See
+  `notebooks/03_anomaly_detection.ipynb` for the full method comparison and
+  rationale.
+- **No LLM in anomaly explanations.** `anomalies/explanations.py` is
+  template-based: the same input always produces the same sentence, and the
+  sentence always names the specific baseline (merchant/category/global)
+  the score came from.
 
 ## Out of scope
 
-Not implemented in this workspace (see PR-007/PR-008 for the full list):
-machine learning, production anomaly detection, forecasting, clustering,
-the final recurring-payment detector, merchant normalisation, automated
-categorisation, LLM-generated insights, recommendations, production
-dashboard analytics, Android/Python runtime integration, backend/API,
-cloud data storage.
+Not implemented in this workspace (see PR-007/PR-008/PR-009 for the full
+list): general machine learning, forecasting, clustering, fraud detection,
+financial advice, the final recurring-payment detector, merchant
+normalisation, automated categorisation, LLM-generated insights,
+recommendations, production dashboard analytics, Android/Python runtime
+integration, backend/API, cloud data storage. Anomaly detection itself is
+now implemented, but only as an analytical result — see
+`anomalies/detector.py`'s docstring and notebook 03's "Out of Scope —
+Confirmation" section for what it deliberately does not do (persistence,
+Android display, production API).
