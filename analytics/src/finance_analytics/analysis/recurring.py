@@ -52,6 +52,9 @@ def recurring_candidates(
         intervals = group[date_column].diff().dropna().dt.days
         interval_mean = intervals.mean()
         median_interval_days = float(intervals.median()) if not intervals.empty else float("nan")
+        # With exactly 2 occurrences there's a single gap, so std() (and thus
+        # interval_variation) is NaN by construction, not a bug — see the
+        # notebook's Feature Engineering Candidates section.
         interval_variation = (
             float(intervals.std() / interval_mean) if interval_mean else float("nan")
         )

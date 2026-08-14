@@ -52,7 +52,7 @@ Do not manufacture conclusions to match the UI prototype.
 
 The prototype contains concepts such as spending trends, unusual purchases, recurring subscriptions, category changes and savings rate. These are product concepts, not evidence from the real dataset.
 
-The prototype uses generated deterministic transaction data and predefined behavioural patterns. Treat those concepts as questions to investigate, not expected answers. fileciteturn8file7L307-L338
+The prototype uses generated deterministic transaction data and predefined behavioural patterns. Treat those concepts as questions to investigate, not expected answers.
 
 ## 1. EDA Notebook
 
