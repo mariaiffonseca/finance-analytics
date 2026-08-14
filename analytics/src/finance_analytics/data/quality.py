@@ -11,6 +11,11 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+#: Columns whose missingness is already reported via `invalid_date_count` /
+#: `invalid_amount_count`, so they are skipped in `missing_values_by_column`
+#: to avoid duplicate-looking rows in the rendered report.
+_COVERED_BY_TYPE_CHECK = {"date", "amount"}
+
 
 @dataclass(frozen=True)
 class DataQualityReport:
@@ -50,6 +55,8 @@ class DataQualityReport:
             "Expense transactions": self.expense_count,
         }
         for column, count in self.missing_values_by_column.items():
+            if column in _COVERED_BY_TYPE_CHECK:
+                continue
             rows[f"Missing values — {column}"] = count
 
         return pd.DataFrame.from_dict(rows, orient="index", columns=["value"])
