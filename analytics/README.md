@@ -4,12 +4,14 @@ Python workspace for analysing transaction data exported from the Finance
 Analytics Android application. This is the analytics **foundation**: CSV
 loading, schema validation, data-quality reporting, DuckDB querying,
 exploratory data analysis of transaction behaviour (temporal, category,
-merchant, outlier and recurring-transaction candidates), and two analytical
-features — transaction anomaly detection (`src/finance_analytics/anomalies/`)
-and recurring-transaction detection (`src/finance_analytics/recurring/`),
-both non-ML, deterministic baselines. It does not implement machine
-learning, forecasting, or any other insight generation — see
-[Out of scope](#out-of-scope).
+merchant, outlier and recurring-transaction candidates), three analytical
+features — transaction anomaly detection (`src/finance_analytics/anomalies/`),
+recurring-transaction detection (`src/finance_analytics/recurring/`), both
+non-ML, deterministic baselines — and a reusable merchant-normalisation and
+transaction-categorisation enrichment layer
+(`src/finance_analytics/enrichment/`), also deterministic and non-ML. It
+does not implement machine learning, forecasting, or any other insight
+generation — see [Out of scope](#out-of-scope).
 
 This workspace is independent from the Android application: no shared code,
 no runtime integration. It reads CSV exports, nothing else.
@@ -45,7 +47,8 @@ analytics/
 │   ├── 01_data_quality_and_overview.ipynb
 │   ├── 02_exploratory_data_analysis.ipynb
 │   ├── 03_anomaly_detection.ipynb
-│   └── 04_recurring_transactions.ipynb
+│   ├── 04_recurring_transactions.ipynb
+│   └── 05_merchant_and_category_analysis.ipynb
 ├── src/finance_analytics/
 │   ├── io/csv.py             CSV → DataFrame loading
 │   ├── validation/transactions.py   Schema validation
@@ -62,11 +65,16 @@ analytics/
 │   │   ├── features.py         Historical, leakage-free merchant/category/global stats
 │   │   ├── detector.py         AnomalyResult + hierarchical robust-z detection
 │   │   └── explanations.py     Deterministic, template-based explanation text
-│   └── recurring/               Recurring-transaction detection (PR-010)
-│       ├── features.py         Per-merchant candidate aggregation (occurrences, amount/interval stats)
-│       ├── scoring.py           Confidence-score signals + frequency banding
-│       ├── detector.py          RecurringResult + classification thresholds
-│       └── explanations.py     Deterministic, template-based explanation text
+│   ├── recurring/               Recurring-transaction detection (PR-010)
+│   │   ├── features.py         Per-merchant candidate aggregation (occurrences, amount/interval stats)
+│   │   ├── scoring.py           Confidence-score signals + frequency banding
+│   │   ├── detector.py          RecurringResult + classification thresholds
+│   │   └── explanations.py     Deterministic, template-based explanation text
+│   └── enrichment/              Merchant normalisation + categorisation (PR-011)
+│       ├── merchants.py         normalise_merchant() + curated (currently empty) alias table
+│       ├── categories.py        Taxonomy, merchant/description rule tables, categorise()
+│       ├── explanations.py     Deterministic, template-based explanation text
+│       └── models.py            EnrichedTransaction + enrich_transactions() entry point
 ├── tests/                    pytest suite (+ tests/fixtures/ CSVs)
 └── data/
     ├── raw/                  Untouched CSV exports (gitignored except the sample fixture)
@@ -113,7 +121,7 @@ cd analytics
 uv run jupyter lab
 ```
 
-All four notebooks load `data/raw/finance_analytics_test_transactions.csv`
+All five notebooks load `data/raw/finance_analytics_test_transactions.csv`
 — a synthetic fixture that includes a duplicate transaction and a few
 deliberately invalid rows so the validation and data-quality steps have
 something to report.
@@ -140,6 +148,16 @@ something to report.
   inspection. See its "Limitations" section — the same 18-row dataset means
   no real merchant here reaches the "Recurring" tier; that tier is only
   demonstrated synthetically.
+- `notebooks/05_merchant_and_category_analysis.ipynb` — builds and
+  evaluates the merchant-normalisation and transaction-categorisation
+  enrichment layer (`finance_analytics.enrichment`). Unlike notebooks 02-04,
+  it does **not** drop the duplicate/invalid/QA-fixture rows first — PR-011
+  is specifically about handling that kind of row safely. Finds that this
+  fixture's raw `merchant`/`category` values are already reliable (no
+  casing, punctuation or aliasing problems), so the pipeline's contribution
+  here is a reusable, tested, explainable priority chain rather than a data
+  cleanup. See its "Limitations" section for what remains unvalidated
+  (real aliasing, a larger merchant vocabulary, production-scale data).
 
 To reproduce non-interactively:
 
@@ -149,6 +167,7 @@ uv run jupyter execute --inplace notebooks/01_data_quality_and_overview.ipynb
 uv run jupyter execute --inplace notebooks/02_exploratory_data_analysis.ipynb
 uv run jupyter execute --inplace notebooks/03_anomaly_detection.ipynb
 uv run jupyter execute --inplace notebooks/04_recurring_transactions.ipynb
+uv run jupyter execute --inplace notebooks/05_merchant_and_category_analysis.ipynb
 ```
 
 ## Reproducibility
@@ -216,17 +235,41 @@ uv run jupyter lab      open notebooks
   an anomalous amount" insight to future work.
 - **No LLM in recurring explanations.** `recurring/explanations.py` is
   template-based, same convention as `anomalies/explanations.py`.
+- **Merchant normalisation is deterministic and evidence-driven, not
+  fuzzy.** `enrichment/merchants.py` only trims/collapses whitespace and
+  resolves an explicit, curated alias table by casefolded lookup — no edit
+  distance, no embeddings. The alias table (`MERCHANT_ALIASES`) is empty:
+  the project's fixture has no casing/punctuation merchant variants to seed
+  it with (see `notebooks/05_merchant_and_category_analysis.ipynb`,
+  sections 1-2). Real aliases should be added only with the same kind of
+  observed evidence, never speculatively.
+- **Categorisation is a four-tier deterministic priority chain**, first
+  match wins: known merchant rule -> known description rule -> existing
+  trusted category -> fallback (`"Uncategorised"`). `enrichment/categories.py`
+  documents why each rule table is populated (or deliberately left thin) —
+  every entry traces back to observed, unambiguous evidence in the fixture.
+  A transaction is never forced into a guessed category.
+- **`category_confidence` is a fixed score per method tier, not a
+  calibrated probability** — same convention as `recurring/scoring.py`'s
+  confidence score.
+- **`enrichment/` does not modify `anomalies/` or `recurring/`.**
+  Normalisation is a verified no-op on the current fixture (notebook 05,
+  section 4), so there is no evidence of a correctness issue to justify
+  refactoring either module to consume normalised merchant names yet — see
+  notebook 05's "Implications for Future Analytics" for what a future PR
+  should do once real aliasing evidence exists.
 
 ## Out of scope
 
-Not implemented in this workspace (see PR-007/PR-008/PR-009/PR-010 for the
-full list): general machine learning, forecasting, clustering, fraud
-detection, financial advice, a full merchant-normalisation system,
-automated categorisation, LLM-generated insights, recommendations,
-production dashboard analytics, Android/Python runtime integration,
-backend/API, cloud data storage, and the combined recurring+anomaly
-insight. Anomaly detection and recurring-transaction detection are both
-implemented, but only as analytical results — see `anomalies/detector.py` /
-`recurring/detector.py`'s docstrings and notebooks 03 / 04's "Out of Scope —
-Confirmation" sections for what they deliberately do not do (persistence,
-Android display, production API).
+Not implemented in this workspace (see PR-007/PR-008/PR-009/PR-010/PR-011
+for the full list): general machine learning, forecasting, clustering,
+fraud detection, financial advice, ML/LLM categorisation, fuzzy/embedding-based
+merchant matching, recommendations, LLM-generated insights, production
+dashboard analytics, Android/Python runtime integration, backend/API, cloud
+data storage, and the combined recurring+anomaly insight. Anomaly detection,
+recurring-transaction detection and merchant normalisation/categorisation
+are all implemented, but only as analytical results — see
+`anomalies/detector.py` / `recurring/detector.py` / `enrichment/models.py`'s
+docstrings and notebooks 03 / 04 / 05's "Out of Scope — Confirmation"
+sections for what they deliberately do not do (persistence, Android
+display, production API).
