@@ -1,11 +1,11 @@
 """Recurring-transaction detection (PR-010).
 
 **Method.** Fully deterministic, rule-based classification — no ML, no LLM.
-For each merchant, `features.build_candidate_features` aggregates expense
-transactions into occurrence count, amount statistics and interval
-statistics; `scoring.combine_confidence` blends those into a single 0-1
-confidence score; this module classifies each candidate into one of four
-outcomes using explicit, documented thresholds:
+For each `(merchant, currency)` pair, `features.build_candidate_features`
+aggregates expense transactions into occurrence count, amount statistics
+and interval statistics; `scoring.combine_confidence` blends those into a
+single 0-1 confidence score; this module classifies each candidate into
+one of four outcomes using explicit, documented thresholds:
 
 1. **`"Insufficient history"`** — fewer than `MIN_OCCURRENCES_CANDIDATE`
    (2) occurrences. Nothing to compare against yet; not scored.
@@ -82,8 +82,8 @@ POSSIBLE_RECURRING_CONFIDENCE_THRESHOLD = 0.45
 
 @dataclass(frozen=True)
 class RecurringResult:
-    """Result of classifying a single merchant's expense history for
-    recurrence.
+    """Result of classifying a single `(merchant, currency)` pair's expense
+    history for recurrence.
 
     `is_recurring` is `True` only for `classification == "Recurring"` —
     `"Possible recurring"` is deliberately not collapsed into `True`
@@ -94,9 +94,16 @@ class RecurringResult:
     `confidence_score` is `None` when `classification == "Insufficient
     history"` — there was not enough history to score at all, distinct
     from "scored and found not recurring" (`confidence_score` present, low).
+
+    `currency` mirrors `features.build_candidate_features`'s grouping key:
+    a merchant billed in more than one currency produces multiple results
+    with an identical `merchant` string, so a consumer keying or displaying
+    by merchant needs `currency` to tell them apart rather than colliding
+    two currencies' classifications under one label.
     """
 
     merchant: str
+    currency: str
     is_recurring: bool
     classification: str
     confidence_score: float | None
@@ -181,13 +188,14 @@ def detect_recurring_transactions(
     merchant_column: str = "merchant",
     currency_column: str = "currency",
 ) -> list[RecurringResult]:
-    """Classify every merchant's expense history in `frame` for recurrence.
+    """Classify every `(merchant, currency)` pair's expense history in
+    `frame` for recurrence.
 
     Expects already-validated, deduplicated input, sorted or not (rows are
     re-sorted chronologically internally per merchant, see `features.py`).
     `Income` rows are excluded — see `features.py`'s docstring. Deterministic:
     the same input always produces the same list of results in the same
-    (alphabetical-by-merchant) order.
+    (alphabetical-by-`(merchant, currency)`) order.
     """
     candidates = build_candidate_features(
         frame,
@@ -211,6 +219,7 @@ def detect_recurring_transactions(
         results.append(
             RecurringResult(
                 merchant=row["merchant"],
+                currency=row["currency"],
                 is_recurring=classification == "Recurring",
                 classification=classification,
                 confidence_score=confidence,

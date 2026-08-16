@@ -184,6 +184,26 @@ def test_every_classified_candidate_has_a_deterministic_explanation():
         assert isinstance(result.reason, str)
 
 
+def test_mixed_currency_merchant_is_distinguished_by_currency_field():
+    # Same merchant name billed in two currencies produces two results with
+    # an identical `merchant` string — `currency` is what tells them apart.
+    frame = pd.DataFrame(
+        [
+            _expense_row("1", "2026-01-05", -9.99, "Spotify", currency="EUR"),
+            _expense_row("2", "2026-02-04", -9.99, "Spotify", currency="EUR"),
+            _expense_row("3", "2026-01-20", -11.99, "Spotify", currency="USD"),
+            _expense_row("4", "2026-02-19", -11.99, "Spotify", currency="USD"),
+        ]
+    )
+
+    results = [r for r in detect_recurring_transactions(frame) if r.merchant == "Spotify"]
+    by_currency = {r.currency: r for r in results}
+
+    assert len(results) == 2
+    assert set(by_currency) == {"EUR", "USD"}
+    assert by_currency["EUR"].median_amount != by_currency["USD"].median_amount
+
+
 def test_transaction_ids_are_included_in_the_result():
     frame = pd.DataFrame(
         [
