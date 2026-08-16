@@ -7,11 +7,14 @@ exploratory data analysis of transaction behaviour (temporal, category,
 merchant, outlier and recurring-transaction candidates), three analytical
 features — transaction anomaly detection (`src/finance_analytics/anomalies/`),
 recurring-transaction detection (`src/finance_analytics/recurring/`), both
-non-ML, deterministic baselines — and a reusable merchant-normalisation and
+non-ML, deterministic baselines — a reusable merchant-normalisation and
 transaction-categorisation enrichment layer
-(`src/finance_analytics/enrichment/`), also deterministic and non-ML. It
-does not implement machine learning, forecasting, or any other insight
-generation — see [Out of scope](#out-of-scope).
+(`src/finance_analytics/enrichment/`), also deterministic and non-ML — and
+a deterministic **Insights Engine** (`src/finance_analytics/insights/`)
+that combines all three into structured, evidence-backed `Insight` objects.
+It does not implement machine learning, forecasting, LLM-generated
+insights, financial advice, recommendations, or a FastAPI/Android
+integration — see [Out of scope](#out-of-scope).
 
 This workspace is independent from the Android application: no shared code,
 no runtime integration. It reads CSV exports, nothing else.
@@ -48,7 +51,8 @@ analytics/
 │   ├── 02_exploratory_data_analysis.ipynb
 │   ├── 03_anomaly_detection.ipynb
 │   ├── 04_recurring_transactions.ipynb
-│   └── 05_merchant_and_category_analysis.ipynb
+│   ├── 05_merchant_and_category_analysis.ipynb
+│   └── 06_insights_engine.ipynb
 ├── src/finance_analytics/
 │   ├── io/csv.py             CSV → DataFrame loading
 │   ├── validation/transactions.py   Schema validation
@@ -70,11 +74,19 @@ analytics/
 │   │   ├── scoring.py           Confidence-score signals + frequency banding
 │   │   ├── detector.py          RecurringResult + classification thresholds
 │   │   └── explanations.py     Deterministic, template-based explanation text
-│   └── enrichment/              Merchant normalisation + categorisation (PR-011)
-│       ├── merchants.py         normalise_merchant() + curated (currently empty) alias table
-│       ├── categories.py        Taxonomy, merchant/description rule tables, categorise()
-│       ├── explanations.py     Deterministic, template-based explanation text
-│       └── models.py            EnrichedTransaction + enrich_transactions() entry point
+│   ├── enrichment/              Merchant normalisation + categorisation (PR-011)
+│   │   ├── merchants.py         normalise_merchant() + curated (currently empty) alias table
+│   │   ├── categories.py        Taxonomy, merchant/description rule tables, categorise()
+│   │   ├── explanations.py     Deterministic, template-based explanation text
+│   │   └── models.py            EnrichedTransaction + enrich_transactions() entry point
+│   └── insights/                 Financial Behaviour & Insights Engine (PR-012)
+│       ├── models.py             Insight model (id/type/severity/confidence/metadata) + to_dict()
+│       ├── periods.py            Comparable current-vs-previous month comparison windows
+│       ├── rules.py              Spending trend / category change / income-expense / savings-rate rules
+│       ├── conversions.py        Adapts PR-009/PR-010 results into Insight objects
+│       ├── ranking.py            Deterministic (severity, confidence, recency, id) ranking
+│       ├── deduplication.py      Same-fact insight deduplication
+│       └── engine.py             generate_insights() — the single entry point
 ├── tests/                    pytest suite (+ tests/fixtures/ CSVs)
 └── data/
     ├── raw/                  Untouched CSV exports (gitignored except the sample fixture)
@@ -121,7 +133,7 @@ cd analytics
 uv run jupyter lab
 ```
 
-All five notebooks load `data/raw/finance_analytics_test_transactions.csv`
+All six notebooks load `data/raw/finance_analytics_test_transactions.csv`
 — a synthetic fixture that includes a duplicate transaction and a few
 deliberately invalid rows so the validation and data-quality steps have
 something to report.
@@ -158,6 +170,18 @@ something to report.
   here is a reusable, tested, explainable priority chain rather than a data
   cleanup. See its "Limitations" section for what remains unvalidated
   (real aliasing, a larger merchant vocabulary, production-scale data).
+- `notebooks/06_insights_engine.ipynb` — builds and evaluates the
+  Insights Engine (`finance_analytics.insights`), which combines PR-009's
+  anomaly results, PR-010's recurring results and PR-011's enrichment
+  output with two new families of period-comparison rules
+  (spending trend, category change, income/expense change, savings rate
+  change) into structured `Insight` objects. On this project's own
+  18-row fixture, `category_change`/`income_expense_change`/
+  `savings_rate_change` are all evidence-suppressed (too few transactions
+  per category window; no income before day 15 of either comparable
+  month) and demonstrated only synthetically — the same kind of
+  data-size limitation notebooks 03/04 already documented for their own
+  detectors, not a bug. See its "Limitations" section.
 
 To reproduce non-interactively:
 
@@ -168,6 +192,7 @@ uv run jupyter execute --inplace notebooks/02_exploratory_data_analysis.ipynb
 uv run jupyter execute --inplace notebooks/03_anomaly_detection.ipynb
 uv run jupyter execute --inplace notebooks/04_recurring_transactions.ipynb
 uv run jupyter execute --inplace notebooks/05_merchant_and_category_analysis.ipynb
+uv run jupyter execute --inplace notebooks/06_insights_engine.ipynb
 ```
 
 ## Reproducibility
@@ -258,18 +283,56 @@ uv run jupyter lab      open notebooks
   refactoring either module to consume normalised merchant names yet — see
   notebook 05's "Implications for Future Analytics" for what a future PR
   should do once real aliasing evidence exists.
+- **The Insights Engine consumes, never reimplements.**
+  `insights/conversions.py` adapts `anomalies.detect_anomalies` /
+  `recurring.detect_recurring_transactions` results directly — every
+  score, threshold and explanation comes from PR-009/PR-010 unchanged.
+  `insights/engine.py` calls `enrichment.enrich_transactions` once and
+  uses its `category` field for `category_change_insights` — the "future
+  analytics" PR-011 built its enrichment layer for — while
+  `detect_anomalies`/`detect_recurring_transactions` keep consuming the
+  original raw `category`/`merchant` columns exactly as those PRs
+  validated them.
+- **Month-over-month comparison uses a comparable window, never a raw
+  full-vs-partial one.** `insights/periods.py` resolves the latest two
+  calendar months present in the data and compares them either as full
+  months, or — when the current month's last transaction isn't on that
+  month's actual last calendar day — both months truncated to the same
+  day-of-month cutoff. This generalises the qualitative judgement PR-008's
+  EDA made about this project's own fixture (Feb is a full month, Mar
+  isn't) into a reusable rule that doesn't hard-code any specific month.
+- **Four new insight rules (`insights/rules.py`) are deterministic and
+  threshold-based, not ML** — spending trend (±15%), category change
+  (±25%, requiring >=2 transactions per comparison window), income/expense
+  divergence, and savings-rate change (±10 percentage points). None of
+  the thresholds are statistically fitted — like every other threshold in
+  this codebase, they are documented, evidence-motivated choices, not
+  values tuned against labelled outcomes (none exist for this product).
+- **Confidence, severity and ranking are heuristics, not calibrated
+  probabilities or a recommendation model.** `insights/periods.py`'s
+  `comparison_confidence` blends period comparability with evidence
+  volume; anomaly-insight confidence is a fixed score per detection tier;
+  recurring-insight confidence is PR-010's own `confidence_score`,
+  unchanged. `insights/ranking.py` only orders insights that already
+  exist (severity, then confidence, then recency, then id) — it does not
+  decide which insights to generate.
+- **No LLM anywhere in the Insights Engine.** Every `Insight.description`
+  is either a fixed template (`rules.py`) or PR-009/PR-010's own
+  deterministic explanation text, passed through unchanged
+  (`conversions.py`).
 
 ## Out of scope
 
-Not implemented in this workspace (see PR-007/PR-008/PR-009/PR-010/PR-011
-for the full list): general machine learning, forecasting, clustering,
-fraud detection, financial advice, ML/LLM categorisation, fuzzy/embedding-based
-merchant matching, recommendations, LLM-generated insights, production
-dashboard analytics, Android/Python runtime integration, backend/API, cloud
-data storage, and the combined recurring+anomaly insight. Anomaly detection,
-recurring-transaction detection and merchant normalisation/categorisation
-are all implemented, but only as analytical results — see
-`anomalies/detector.py` / `recurring/detector.py` / `enrichment/models.py`'s
-docstrings and notebooks 03 / 04 / 05's "Out of Scope — Confirmation"
+Not implemented in this workspace (see PR-007 through PR-012 for the full
+list): general machine learning, forecasting, clustering, fraud detection,
+financial advice, ML/LLM categorisation, fuzzy/embedding-based merchant
+matching, recommendations, LLM-generated insights, production dashboard
+analytics, Android/Python runtime integration, backend/API, cloud data
+storage, a FastAPI service, and a complex recommendation model. Anomaly
+detection, recurring-transaction detection, merchant
+normalisation/categorisation and the Insights Engine are all implemented,
+but only as analytical results — see `anomalies/detector.py` /
+`recurring/detector.py` / `enrichment/models.py` / `insights/engine.py`'s
+docstrings and notebooks 03 / 04 / 05 / 06's "Out of Scope — Confirmation"
 sections for what they deliberately do not do (persistence, Android
-display, production API).
+display, production API, financial advice).
