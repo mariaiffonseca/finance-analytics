@@ -46,6 +46,7 @@ not evaluated.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -106,66 +107,113 @@ class AnomalyResult:
 
 
 def _optional_round(value: float) -> float | None:
-    return None if pd.isna(value) else round(float(value), 2)
+    """Round to display precision, or `None` for a value with nothing to
+    show (`NaN`, from an empty history) or nothing sensible to show
+    (`+inf`/`-inf` — not valid JSON and not orderable against other scores).
+    """
+    return None if not math.isfinite(value) else round(float(value), 2)
 
 
 def _build_context(row: pd.Series) -> dict[str, object]:
     return {
         "merchant_median": _optional_round(row["merchant_median"]),
+        "merchant_mad": _optional_round(row["merchant_mad"]),
         "merchant_transaction_count": int(row["merchant_history_count"]),
         "category_median": _optional_round(row["category_median"]),
+        "category_mad": _optional_round(row["category_mad"]),
         "category_iqr": _optional_round(row["category_iqr"]),
         "category_transaction_count": int(row["category_history_count"]),
+        "global_median": _optional_round(row["global_median"]),
+        "global_mad": _optional_round(row["global_mad"]),
         "global_transaction_count": int(row["global_history_count"]),
     }
 
 
+#: One entry per tier, in priority order: (method name, the row's history-count
+#: field, the minimum required, the row's median/mad fields, the noun-phrase
+#: getter — `None` for the noun-free global tier — and the `explain_*`
+#: function for that tier). `_score_row` walks this instead of three
+#: copy-pasted branches, so a fix to how a tier is scored can't be applied to
+#: one branch and silently forgotten in the other two.
+_TIERS = [
+    (
+        "merchant_relative_robust_z",
+        "merchant_history_count",
+        MIN_MERCHANT_HISTORY,
+        "merchant_median",
+        "merchant_mad",
+        lambda row, merchant_column, category_column: row[merchant_column],
+        explain_merchant_relative,
+    ),
+    (
+        "category_relative_robust_z",
+        "category_history_count",
+        MIN_CATEGORY_HISTORY,
+        "category_median",
+        "category_mad",
+        lambda row, merchant_column, category_column: row[category_column],
+        explain_category_relative,
+    ),
+    (
+        "global_relative_robust_z",
+        "global_history_count",
+        MIN_GLOBAL_HISTORY,
+        "global_median",
+        "global_mad",
+        lambda row, merchant_column, category_column: None,
+        explain_global_relative,
+    ),
+]
+
+
 def _score_row(
-    row: pd.Series, id_column: str, category_column: str, merchant_column: str
+    row: pd.Series,
+    id_column: str,
+    category_column: str,
+    merchant_column: str,
+    currency_column: str,
 ) -> AnomalyResult:
     amount = float(row["abs_amount"])
-    category = row[category_column]
-    merchant = row[merchant_column]
+    currency = row[currency_column]
     context = _build_context(row)
 
-    if row["merchant_history_count"] >= MIN_MERCHANT_HISTORY:
-        method = "merchant_relative_robust_z"
-        median, mad = row["merchant_median"], row["merchant_mad"]
-        score = robust_zscore_of(amount, median, mad)
-        is_anomaly = score > ANOMALY_Z_THRESHOLD
-        reason = explain_merchant_relative(merchant, amount, median, is_anomaly)
-    elif row["category_history_count"] >= MIN_CATEGORY_HISTORY:
-        method = "category_relative_robust_z"
-        median, mad = row["category_median"], row["category_mad"]
-        score = robust_zscore_of(amount, median, mad)
-        is_anomaly = score > ANOMALY_Z_THRESHOLD
-        reason = explain_category_relative(category, amount, median, is_anomaly)
-    elif row["global_history_count"] >= MIN_GLOBAL_HISTORY:
-        method = "global_relative_robust_z"
-        median, mad = row["global_median"], row["global_mad"]
-        score = robust_zscore_of(amount, median, mad)
-        is_anomaly = score > ANOMALY_Z_THRESHOLD
-        reason = explain_global_relative(amount, median, is_anomaly)
-    else:
+    for method, count_key, min_history, median_key, mad_key, noun_of, explain in _TIERS:
+        if row[count_key] < min_history:
+            continue
+
+        median, mad = row[median_key], row[mad_key]
+        raw_score = robust_zscore_of(amount, median, mad)
+        score = _optional_round(raw_score)
+        # Deciding anomalousness from the *displayed* (rounded) score, not
+        # the raw one, guarantees the two never disagree — a raw score of
+        # 2.996 and one of 3.004 both round to the same displayed 3.0 and
+        # must therefore get the same is_anomaly verdict.
+        is_anomaly = score is not None and score > ANOMALY_Z_THRESHOLD
+        is_unusually_low = score is not None and score < -ANOMALY_Z_THRESHOLD
+
+        noun = noun_of(row, merchant_column, category_column)
+        args = (amount, median, is_anomaly) if noun is None else (noun, amount, median, is_anomaly)
+        reason = explain(*args, currency=currency, is_unusually_low=is_unusually_low)
+
         return AnomalyResult(
             transaction_id=row[id_column],
-            anomaly_score=None,
-            is_anomaly=False,
-            method="insufficient_history",
-            reason=explain_insufficient_history(
-                category_count=int(row["category_history_count"]),
-                merchant_count=int(row["merchant_history_count"]),
-                global_count=int(row["global_history_count"]),
-            ),
+            anomaly_score=score,
+            is_anomaly=is_anomaly,
+            method=method,
+            reason=reason,
             reference_context=context,
         )
 
     return AnomalyResult(
         transaction_id=row[id_column],
-        anomaly_score=_optional_round(score),
-        is_anomaly=bool(is_anomaly),
-        method=method,
-        reason=reason,
+        anomaly_score=None,
+        is_anomaly=False,
+        method="insufficient_history",
+        reason=explain_insufficient_history(
+            category_count=int(row["category_history_count"]),
+            merchant_count=int(row["merchant_history_count"]),
+            global_count=int(row["global_history_count"]),
+        ),
         reference_context=context,
     )
 
@@ -177,6 +225,7 @@ def detect_anomalies(
     amount_column: str = "amount",
     category_column: str = "category",
     merchant_column: str = "merchant",
+    currency_column: str = "currency",
 ) -> list[AnomalyResult]:
     """Score every expense transaction in `frame` for anomalousness.
 
@@ -195,6 +244,6 @@ def detect_anomalies(
     )
 
     return [
-        _score_row(row, id_column, category_column, merchant_column)
+        _score_row(row, id_column, category_column, merchant_column, currency_column)
         for _, row in features.iterrows()
     ]

@@ -17,26 +17,39 @@ each can be tested independently of that decision.
 
 from __future__ import annotations
 
+import bisect
 from collections import defaultdict
 
 import pandas as pd
 
+from finance_analytics.analysis.outliers import percentile_of_sorted
 
-def _median_mad_iqr(history: list[float]) -> tuple[int, float, float, float]:
-    """Summarise a list of historical amounts as (count, median, mad, iqr).
+
+def _median_mad_iqr(sorted_history: list[float]) -> tuple[int, float, float, float]:
+    """Summarise an already-sorted list of historical amounts as
+    (count, median, mad, iqr).
+
+    `sorted_history` is expected pre-sorted (see `build_historical_features`,
+    which maintains each running history via `bisect.insort`) so median and
+    IQR are O(1) lookups via `percentile_of_sorted` instead of re-sorting
+    the full history from scratch on every transaction. Only MAD's
+    deviations-from-median need their own sort, since they change whenever
+    the median does.
 
     All three statistics are `NaN` for an empty history — there is nothing
     to summarise yet, and `NaN` (rather than e.g. 0) makes that explicit to
     callers instead of looking like a real, if degenerate, baseline.
     """
-    if not history:
+    n = len(sorted_history)
+    if n == 0:
         return 0, float("nan"), float("nan"), float("nan")
 
-    values = pd.Series(history, dtype=float)
-    median = values.median()
-    mad = (values - median).abs().median()
-    iqr = values.quantile(0.75) - values.quantile(0.25)
-    return len(values), float(median), float(mad), float(iqr)
+    median = percentile_of_sorted(sorted_history, 0.5)
+    deviations = sorted(abs(v - median) for v in sorted_history)
+    mad = percentile_of_sorted(deviations, 0.5)
+    q1 = percentile_of_sorted(sorted_history, 0.25)
+    q3 = percentile_of_sorted(sorted_history, 0.75)
+    return n, median, mad, q3 - q1
 
 
 def build_historical_features(
@@ -50,8 +63,10 @@ def build_historical_features(
 
     Expects already-validated, deduplicated input (the same convention as
     `analysis.category.category_summary` / `analysis.merchant.merchant_summary`)
-    — rows with a missing date, amount or merchant are dropped rather than
-    silently scored against an incomplete history.
+    — rows with a missing date, amount, merchant or category are dropped
+    rather than silently scored against an incomplete or bogus history (a
+    missing category would otherwise pool into a shared "NaN category"
+    baseline with every other uncategorised row).
 
     Rows are processed in chronological order (`date_column`, stable sort so
     same-day transactions keep their original relative order). For each row,
@@ -62,10 +77,14 @@ def build_historical_features(
     features are computed, so it can never influence its own baseline.
     `*_iqr` (category and global) is included for reference/display
     alongside the median, mirroring PR-009's suggested result fields.
+
+    Each running history is maintained pre-sorted (`bisect.insort`) so
+    `_median_mad_iqr` can look up the median and IQR in O(1) instead of
+    resorting the full history from scratch on every transaction.
     """
     expenses = (
         frame[frame[amount_column] < 0]
-        .dropna(subset=[date_column, amount_column, merchant_column])
+        .dropna(subset=[date_column, amount_column, merchant_column, category_column])
         .sort_values(date_column, kind="stable")
         .copy()
     )
@@ -83,7 +102,7 @@ def build_historical_features(
 
         m_count, m_median, m_mad, _m_iqr = _median_mad_iqr(merchant_history[merchant])
         c_count, c_median, c_mad, c_iqr = _median_mad_iqr(category_history[category])
-        g_count, g_median, g_mad, _g_iqr = _median_mad_iqr(global_history)
+        g_count, g_median, g_mad, g_iqr = _median_mad_iqr(global_history)
 
         feature_rows.append(
             {
@@ -97,13 +116,15 @@ def build_historical_features(
                 "global_history_count": g_count,
                 "global_median": g_median,
                 "global_mad": g_mad,
+                "global_iqr": g_iqr,
             }
         )
 
-        # Update *after* reading, so this row never contributes to its own baseline.
-        merchant_history[merchant].append(amount)
-        category_history[category].append(amount)
-        global_history.append(amount)
+        # Update *after* reading, so this row never contributes to its own
+        # baseline. `bisect.insort` keeps each history sorted in place.
+        bisect.insort(merchant_history[merchant], amount)
+        bisect.insort(category_history[category], amount)
+        bisect.insort(global_history, amount)
 
     features = pd.DataFrame(feature_rows, index=expenses.index)
     return pd.concat([expenses, features], axis=1)

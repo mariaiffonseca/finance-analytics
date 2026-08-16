@@ -72,3 +72,35 @@ def test_a_later_transaction_does_not_change_an_earlier_ones_features(transactio
     pd.testing.assert_series_equal(
         features_with_all_rows.loc[early_id], features_without_later_row.loc[early_id]
     )
+
+
+def test_rows_with_missing_category_are_dropped_not_pooled():
+    frame = pd.DataFrame(
+        {
+            "id": ["1", "2", "3"],
+            "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
+            "amount": [-10.0, -12.0, -11.0],
+            "category": ["Groceries", None, "Groceries"],
+            "merchant": ["Continente", "UnknownShop", "Continente"],
+        }
+    )
+
+    features = build_historical_features(frame)
+
+    assert set(features["id"]) == {"1", "3"}
+
+
+def test_global_iqr_is_included_alongside_category_iqr():
+    frame = pd.DataFrame(
+        {
+            "id": ["1", "2", "3"],
+            "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
+            "amount": [-10.0, -12.0, -11.0],
+            "category": ["Groceries", "Groceries", "Groceries"],
+            "merchant": ["Continente", "Continente", "Continente"],
+        }
+    )
+
+    features = build_historical_features(frame)
+
+    assert "global_iqr" in features.columns

@@ -73,9 +73,19 @@ def test_robust_zscore_of_zero_mad_matching_value_is_not_anomalous():
     assert robust_zscore_of(10.0, median=10.0, mad=0.0) == 0.0
 
 
-def test_robust_zscore_of_zero_mad_differing_value_is_infinite():
-    assert robust_zscore_of(15.0, median=10.0, mad=0.0) == math.inf
-    assert robust_zscore_of(5.0, median=10.0, mad=0.0) == -math.inf
+def test_robust_zscore_of_zero_mad_tiny_deviation_is_not_extreme():
+    # A one-cent difference against a zero-MAD baseline (e.g. two identical
+    # prior charges) is a real but tiny deviation, not an unbounded break
+    # from the pattern — it should score well under the anomaly threshold.
+    score = robust_zscore_of(10.01, median=10.0, mad=0.0)
+
+    assert score == pytest.approx((10.01 - 10.0) / (0.01 * 1.4826))
+    assert score < 3.0
+
+
+def test_robust_zscore_of_zero_mad_large_deviation_still_scores_high():
+    assert robust_zscore_of(15.0, median=10.0, mad=0.0) > 100
+    assert robust_zscore_of(5.0, median=10.0, mad=0.0) < -100
 
 
 def test_robust_zscore_of_missing_reference_is_nan():

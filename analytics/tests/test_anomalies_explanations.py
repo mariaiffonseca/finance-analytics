@@ -48,3 +48,40 @@ def test_insufficient_history_explanation_is_deterministic_and_references_counts
     assert "1" in reason
     assert "0" in reason
     assert "2" in reason
+
+
+def test_explanation_uses_the_given_currency_not_a_hardcoded_symbol():
+    reason = explain_merchant_relative(
+        "Spotify", amount=59.99, median=29.99, is_anomaly=True, currency="USD"
+    )
+
+    assert "USD" in reason
+    assert "€" not in reason
+
+
+def test_ratio_rounding_to_no_visible_change_falls_back_to_qualitative_text():
+    # z-score flags this (small MAD baseline) but amount/median rounds to
+    # "1.0×", which would read as "no different from typical" — a
+    # self-contradiction the qualitative fallback avoids.
+    reason = explain_merchant_relative("Landlord", amount=102.8, median=100.5, is_anomaly=True)
+
+    assert "1.0×" not in reason
+    assert "Landlord" in reason
+
+
+def test_not_anomalous_but_unusually_low_does_not_claim_close_to_typical():
+    reason = explain_merchant_relative(
+        "Merchant", amount=5.0, median=29.99, is_anomaly=False, is_unusually_low=True
+    )
+
+    assert "close to" not in reason
+    assert "0.2×" in reason
+
+
+def test_nan_median_does_not_render_literal_nan():
+    reason = explain_category_relative(
+        "Groceries", amount=15.0, median=float("nan"), is_anomaly=True
+    )
+
+    assert "nan" not in reason.lower()
+    assert "Groceries" in reason

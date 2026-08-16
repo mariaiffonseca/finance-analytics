@@ -7,13 +7,14 @@ from finance_analytics.anomalies.detector import (
 )
 
 
-def _expense_row(id_, date, amount, category="Groceries", merchant="Continente"):
+def _expense_row(id_, date, amount, category="Groceries", merchant="Continente", currency="EUR"):
     return {
         "id": id_,
         "date": pd.Timestamp(date),
         "amount": amount,
         "category": category,
         "merchant": merchant,
+        "currency": currency,
     }
 
 
@@ -105,6 +106,58 @@ def test_merchant_specific_deviation_is_flagged_even_with_thin_category_history(
     assert result.method == "merchant_relative_robust_z"
     assert result.is_anomaly is True
     assert result.reference_context["merchant_transaction_count"] == 2
+
+
+def test_reference_context_includes_the_mad_and_median_for_every_tier():
+    # A caller needs merchant/category/global median *and* mad to
+    # independently reconstruct whichever score was actually used.
+    rows = [
+        _expense_row(str(i), f"2026-01-0{i}", amount, merchant=f"Shop{i}")
+        for i, amount in enumerate([-10.0, -11.0, -12.0, -10.0, -11.0], start=1)
+    ]
+    rows.append(_expense_row("6", "2026-01-06", -12.0, merchant="ShopX"))
+    frame = _frame(rows)
+
+    result = _result_for(detect_anomalies(frame), "6")
+
+    assert result.method == "category_relative_robust_z"
+    context = result.reference_context
+    assert all(
+        key in context
+        for key in (
+            "merchant_mad",
+            "category_mad",
+            "global_median",
+            "global_mad",
+        )
+    )
+
+
+def test_is_anomaly_never_disagrees_with_the_displayed_anomaly_score():
+    rows = [
+        _expense_row(str(i), f"2026-01-0{i}", amount)
+        for i, amount in enumerate([-10.0, -11.0, -9.0, -12.0, -10.0, -600.0], start=1)
+    ]
+    frame = _frame(rows)
+
+    for result in detect_anomalies(frame):
+        if result.anomaly_score is None:
+            continue
+        assert result.is_anomaly == (result.anomaly_score > ANOMALY_Z_THRESHOLD)
+
+
+def test_explanation_reflects_the_transactions_own_currency():
+    rows = [
+        _expense_row(str(i), f"2026-01-0{i}", amount, currency="USD")
+        for i, amount in enumerate([-10.0, -11.0, -12.0, -10.0, -11.0], start=1)
+    ]
+    rows.append(_expense_row("6", "2026-01-06", -12.0, merchant="ShopX", currency="USD"))
+    frame = _frame(rows)
+
+    result = _result_for(detect_anomalies(frame), "6")
+
+    assert "USD" in result.reason
+    assert "€" not in result.reason
 
 
 def test_income_rows_are_not_scored():
