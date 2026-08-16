@@ -2,13 +2,14 @@
 detection (PR-010).
 
 Builds the full candidate table used by `detector.detect_recurring_transactions`:
-one row per merchant with at least one expense transaction. Unlike
-`analysis.recurring.recurring_candidates` (PR-008's *exploratory* table),
-merchants seen only once are kept rather than filtered out — with
-`occurrences=1` and `NaN` variation stats — so `detector.py` can classify
-them explicitly as insufficient history, the same "visible not-enough-data"
-outcome `anomalies.detector` uses for its `insufficient_history` tier,
-rather than silently dropping them from the result set.
+one row per `(merchant, currency)` pair with at least one expense
+transaction. Unlike `analysis.recurring.recurring_candidates` (PR-008's
+*exploratory* table), merchants seen only once are kept rather than
+filtered out — with `occurrences=1` and `NaN` variation stats — so
+`detector.py` can classify them explicitly as insufficient history, the
+same "visible not-enough-data" outcome `anomalies.detector` uses for its
+`insufficient_history` tier, rather than silently dropping them from the
+result set.
 
 **Scope: expenses only.** A "recurring transaction" here means a recurring
 *payment* — a subscription or regular bill. Income repeats too (e.g. a
@@ -26,6 +27,18 @@ match, same as `analysis/recurring.py` and `anomalies/features.py`. If a
 future dataset needs normalisation, that decision belongs in this
 docstring and in a dedicated, tested function — not silently inside the
 grouping logic.
+
+**Grouped by `(merchant, currency)`, not `merchant` alone.** `currency` is
+a required per-transaction field in the domain model, and a merchant can
+plausibly be billed in more than one (e.g. a subscription charged in USD
+once and EUR another time, or spend from a foreign-currency account). If
+candidates were keyed by merchant only, a mixed-currency merchant's
+amounts would be summed/averaged across currencies into a meaningless
+number, with an arbitrarily-picked `currency` label on top. Keying by the
+pair instead makes a mixed-currency merchant naturally split into separate
+candidates, one per currency it was actually charged in. Not reachable on
+the current EUR-only fixture, so untested here, but a currency mix is
+easy to introduce with real bank data.
 """
 
 from __future__ import annotations
@@ -55,12 +68,13 @@ def build_candidate_features(
     merchant_column: str = "merchant",
     currency_column: str = "currency",
 ) -> pd.DataFrame:
-    """Aggregate expense transactions into one candidate row per merchant.
+    """Aggregate expense transactions into one candidate row per
+    `(merchant, currency)` pair.
 
     Expects already-validated, deduplicated input (the same convention as
     `analysis.category.category_summary` and `anomalies.features.build_historical_features`)
-    — rows with a missing date, amount or merchant are dropped rather than
-    silently aggregated into a bogus candidate.
+    — rows with a missing date, amount, merchant or currency are dropped
+    rather than silently aggregated into a bogus candidate.
 
     Columns, all derived from that merchant's own expense transactions:
 
@@ -85,16 +99,16 @@ def build_candidate_features(
       caller (e.g. an Insights layer) can link a classification back to
       specific transactions without re-deriving the grouping.
 
-    Returned rows are sorted by `merchant` for a deterministic, easy-to-diff
-    order. An input with no expense rows returns an empty frame with the
-    documented columns.
+    Returned rows are sorted by `(merchant, currency)` for a deterministic,
+    easy-to-diff order. An input with no expense rows returns an empty
+    frame with the documented columns.
     """
     expenses = frame[frame[amount_column] < 0].dropna(
-        subset=[date_column, amount_column, merchant_column]
+        subset=[date_column, amount_column, merchant_column, currency_column]
     )
 
     rows = []
-    for merchant, group in expenses.groupby(merchant_column):
+    for (merchant, currency), group in expenses.groupby([merchant_column, currency_column]):
         ordered = group.sort_values(date_column, kind="stable")
         amounts = ordered[amount_column].abs()
         dates = ordered[date_column]
@@ -112,7 +126,7 @@ def build_candidate_features(
         rows.append(
             {
                 "merchant": merchant,
-                "currency": ordered[currency_column].iloc[0],
+                "currency": currency,
                 "occurrences": len(ordered),
                 "total_amount": float(amounts.sum()),
                 "median_amount": float(amounts.median()),
@@ -128,4 +142,8 @@ def build_candidate_features(
     if not rows:
         return pd.DataFrame(columns=_COLUMNS)
 
-    return pd.DataFrame(rows, columns=_COLUMNS).sort_values("merchant").reset_index(drop=True)
+    return (
+        pd.DataFrame(rows, columns=_COLUMNS)
+        .sort_values(["merchant", "currency"])
+        .reset_index(drop=True)
+    )

@@ -161,6 +161,41 @@ def test_no_expense_rows_returns_expected_columns():
     assert features.empty
 
 
+def test_mixed_currency_merchant_splits_into_separate_candidates():
+    # Same merchant name, two currencies — must not be blended into one
+    # candidate with a summed/averaged amount and an arbitrarily-picked
+    # currency label.
+    frame = pd.DataFrame(
+        [
+            _expense_row("1", "2026-01-05", -9.99, merchant="Spotify", currency="EUR"),
+            _expense_row("2", "2026-02-04", -9.99, merchant="Spotify", currency="EUR"),
+            _expense_row("3", "2026-01-20", -11.99, merchant="Spotify", currency="USD"),
+        ]
+    )
+
+    features = build_candidate_features(frame)
+    spotify = features[features["merchant"] == "Spotify"].set_index("currency")
+
+    assert set(spotify.index) == {"EUR", "USD"}
+    assert spotify.loc["EUR", "occurrences"] == 2
+    assert spotify.loc["EUR", "median_amount"] == pytest.approx(9.99)
+    assert spotify.loc["USD", "occurrences"] == 1
+    assert spotify.loc["USD", "median_amount"] == pytest.approx(11.99)
+
+
+def test_rows_with_missing_currency_are_dropped():
+    frame = pd.DataFrame(
+        [
+            _expense_row("1", "2026-01-05", -9.99, currency=None),
+            _expense_row("2", "2026-02-04", -9.99),
+        ]
+    )
+
+    features = build_candidate_features(frame)
+
+    assert next(iter(features["transaction_ids"])) == ["2"]
+
+
 def test_rows_with_missing_merchant_are_dropped():
     frame = pd.DataFrame(
         [
