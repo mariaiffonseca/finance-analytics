@@ -9,15 +9,18 @@ features — transaction anomaly detection (`src/finance_analytics/anomalies/`),
 recurring-transaction detection (`src/finance_analytics/recurring/`), both
 non-ML, deterministic baselines — a reusable merchant-normalisation and
 transaction-categorisation enrichment layer
-(`src/finance_analytics/enrichment/`), also deterministic and non-ML — and
-a deterministic **Insights Engine** (`src/finance_analytics/insights/`)
-that combines all three into structured, evidence-backed `Insight` objects.
-It does not implement machine learning, forecasting, LLM-generated
-insights, financial advice, recommendations, or a FastAPI/Android
-integration — see [Out of scope](#out-of-scope).
+(`src/finance_analytics/enrichment/`), also deterministic and non-ML — a
+deterministic **Insights Engine** (`src/finance_analytics/insights/`)
+that combines all three into structured, evidence-backed `Insight` objects —
+and a stateless **FastAPI service** (`src/finance_analytics/api/`) that
+exposes the whole pipeline over HTTP. It does not implement machine
+learning, forecasting, LLM-generated insights, financial advice,
+recommendations, authentication, persistence, or Android integration — see
+[Out of scope](#out-of-scope).
 
 This workspace is independent from the Android application: no shared code,
-no runtime integration. It reads CSV exports, nothing else.
+no runtime integration (the API is HTTP-only; nothing here imports or is
+imported by Android code).
 
 ## Stack
 
@@ -27,6 +30,7 @@ no runtime integration. It reads CSV exports, nothing else.
 | DataFrames | Pandas |
 | SQL analytics | DuckDB |
 | Visualisation | Plotly |
+| API | FastAPI, Pydantic, Uvicorn |
 | Experiments | Jupyter (JupyterLab) |
 | Tests | pytest |
 | Lint/format | Ruff |
@@ -87,7 +91,15 @@ analytics/
 │       ├── ranking.py            Deterministic (severity, confidence, recency, id) ranking
 │       ├── deduplication.py      Same-fact insight deduplication
 │       └── engine.py             generate_insights() — the single entry point
-├── tests/                    pytest suite (+ tests/fixtures/ CSVs)
+│   └── api/                       Analytics API (PR-013) — transport only, no analytics logic
+│       ├── app.py                 FastAPI application factory (`app = create_app()`)
+│       ├── schemas.py             Pydantic request/response models (the HTTP contract)
+│       ├── service.py             Application/service layer: request -> analytics engine -> response
+│       ├── errors.py              Exception -> HTTP status mapping (400 / 422 / 500)
+│       └── routes/
+│           ├── health.py          GET /health
+│           └── analytics.py       POST /analytics/analyse
+├── tests/                    pytest suite (+ tests/fixtures/ CSVs, tests/api/ for the API)
 └── data/
     ├── raw/                  Untouched CSV exports (gitignored except the sample fixture)
     ├── processed/            Pipeline output (gitignored)
@@ -125,6 +137,61 @@ cd analytics
 uv run ruff check .
 uv run ruff format .
 ```
+
+## Running the API locally
+
+```bash
+cd analytics
+uv run uvicorn finance_analytics.api.app:app --reload
+```
+
+Then, with the server running:
+
+- Interactive docs (Swagger UI): <http://127.0.0.1:8000/docs>
+- Raw OpenAPI schema: <http://127.0.0.1:8000/openapi.json>
+- Liveness check: `curl http://127.0.0.1:8000/health` → `{"status": "ok"}`
+
+Example request to `POST /analytics/analyse`:
+
+```bash
+curl -X POST http://127.0.0.1:8000/analytics/analyse \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transactions": [
+      {"id": "1", "date": "2026-01-05", "amount": -12.50, "currency": "EUR",
+       "description": "Coffee", "merchant": "Coffee Corner", "category": "Food & Dining",
+       "account": "Main Account"},
+      {"id": "2", "date": "2026-01-10", "amount": 2000.00, "currency": "EUR",
+       "description": "Salary", "merchant": "Employer Payroll", "category": "Income",
+       "account": "Main Account"}
+    ]
+  }'
+```
+
+The response contains `summary` (income/expenses/savings totals), `insights`
+(from the PR-012 Insights Engine), `anomalies` (flagged `AnomalyResult`s from
+PR-009), `recurring` (`"Recurring"`/`"Possible recurring"` merchants from
+PR-010) and `metadata` (dataset diagnostics — see `api/schemas.py` for the
+full field list, or just read `/docs`).
+
+**Local development only.** No authentication, transport security (TLS) or
+production hardening is implemented — do not expose this service outside a
+trusted local environment, and do not send real financial data to it. A
+production deployment would need authentication, HTTPS, rate limiting and a
+privacy review before handling real transactions (PR-013 §16 explicitly
+defers all of this).
+
+### Error responses
+
+| Status | Meaning | Body shape |
+|---|---|---|
+| `400` | Request parsed but is structurally invalid (e.g. a `NaN`/`Infinity` amount) | `{"detail": "<message>"}` |
+| `422` | Request failed Pydantic schema validation (missing field, wrong type, invalid date) | FastAPI's default `{"detail": [...]}` |
+| `500` | An unexpected analytics-engine failure | `{"detail": "Internal analytics failure."}` — no stack trace or transaction data |
+
+An empty `transactions` list is rejected as `422` — there is nothing to
+analyse, so it is treated as an invalid request rather than a request that
+produces an empty response.
 
 ## Running the notebooks
 
@@ -198,11 +265,12 @@ uv run jupyter execute --inplace notebooks/06_insights_engine.ipynb
 ## Reproducibility
 
 ```text
-uv sync                 install dependencies
-uv run pytest           run tests
-uv run jupyter lab      open notebooks
-                         load data/raw/finance_analytics_test_transactions.csv
-                         re-run all cells to reproduce results
+uv sync                                                      install dependencies
+uv run pytest                                                run tests
+uv run jupyter lab                                           open notebooks
+                                                               load data/raw/finance_analytics_test_transactions.csv
+                                                               re-run all cells to reproduce results
+uv run uvicorn finance_analytics.api.app:app --reload        run the API locally
 ```
 
 ## Engineering decisions
@@ -320,19 +388,60 @@ uv run jupyter lab      open notebooks
   is either a fixed template (`rules.py`) or PR-009/PR-010's own
   deterministic explanation text, passed through unchanged
   (`conversions.py`).
+- **The API is transport only; `api/service.py` is the one place that
+  talks to both Pydantic and pandas.** `api/routes/analytics.py`'s handler
+  is a single line — `return run_analysis(request)` — so no anomaly
+  threshold, recurring threshold, feature-engineering step or insight rule
+  can end up inside a route (PR-013, Critical Architecture Rule).
+  `service.run_analysis` calls `generate_insights` (PR-012),
+  `detect_anomalies` (PR-009) and `detect_recurring_transactions` (PR-010)
+  unchanged, and reuses two PR-007 building blocks
+  (`duckdb_queries.total_income`/`total_expenses`,
+  `data.quality.build_quality_report`) for the response's `summary`/
+  `metadata` sections instead of writing new aggregation logic.
+- **`anomalies`/`recurring` in the response are filtered, not raw.** Only
+  `AnomalyResult`s with `is_anomaly=True` and `RecurringResult`s classified
+  `"Recurring"`/`"Possible recurring"` are returned — the same filter
+  `insights/conversions.py` already applies when turning those results into
+  `Insight`s, so the three response sections agree with each other about
+  what counts as worth surfacing.
+- **Two validation layers, not one.** Pydantic (`api/schemas.py`) rejects
+  malformed requests at the transport boundary (422) — missing fields,
+  wrong types, unparseable dates. `service.run_analysis` then re-runs
+  PR-007's own `validation.transactions.validate_transactions` on the
+  constructed DataFrame and maps a failure to 400
+  (`service.TransactionValidationError`, mapped in `api/errors.py`). This
+  is not redundant: a JSON body can encode `"amount": NaN`, which
+  Pydantic's `float` field accepts (JSON's non-standard NaN extension) but
+  which `validate_transactions` correctly flags as an invalid amount — see
+  `tests/api/test_analytics.py::test_nan_amount_passes_schema_but_fails_structural_validation`.
+- **The API is stateless by construction, not by convention.** There is no
+  database, ORM, session or cache anywhere in `api/` — every request
+  reconstructs its DataFrame from the request body and discards it after
+  the response is built. Nothing about a request (not even that it
+  happened) is logged; only the *type* of an unexpected exception is
+  logged server-side on a 500, via `logging.Logger.exception`, and never
+  the request body (`api/errors.py`).
 
 ## Out of scope
 
-Not implemented in this workspace (see PR-007 through PR-012 for the full
+Not implemented in this workspace (see PR-007 through PR-013 for the full
 list): general machine learning, forecasting, clustering, fraud detection,
 financial advice, ML/LLM categorisation, fuzzy/embedding-based merchant
 matching, recommendations, LLM-generated insights, production dashboard
-analytics, Android/Python runtime integration, backend/API, cloud data
-storage, a FastAPI service, and a complex recommendation model. Anomaly
-detection, recurring-transaction detection, merchant
-normalisation/categorisation and the Insights Engine are all implemented,
-but only as analytical results — see `anomalies/detector.py` /
-`recurring/detector.py` / `enrichment/models.py` / `insights/engine.py`'s
-docstrings and notebooks 03 / 04 / 05 / 06's "Out of Scope — Confirmation"
-sections for what they deliberately do not do (persistence, Android
-display, production API, financial advice).
+analytics, and Android/Python runtime integration. Anomaly detection,
+recurring-transaction detection, merchant normalisation/categorisation, the
+Insights Engine and a FastAPI service exposing all of them over HTTP
+(`src/finance_analytics/api/`, PR-013) are all implemented — see
+`anomalies/detector.py` / `recurring/detector.py` / `enrichment/models.py` /
+`insights/engine.py` / `api/service.py`'s docstrings and notebooks
+03 / 04 / 05 / 06's "Out of Scope — Confirmation" sections for what they
+deliberately do not do.
+
+The API specifically does **not** implement: authentication, user accounts,
+server-side transaction persistence, a database, sessions, cloud
+deployment, Docker deployment, Android integration, LLM-generated insights,
+recommendations, background jobs, or push notifications (PR-013 §16/Out of
+Scope). It is a local-development, stateless HTTP layer only — see
+"Running the API locally" above for the privacy caveats that follow from
+that.
