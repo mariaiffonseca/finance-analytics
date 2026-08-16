@@ -9,8 +9,10 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "duckdb>=1.5.5",
+    "fastapi>=0.141.1",
     "pandas>=3.0.5",
     "plotly>=6.9.0",
+    "uvicorn>=0.52.3",
 ]
 
 [build-system]
@@ -19,6 +21,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.10.0",
     "ipykernel>=7.3.0",
     "jupyterlab>=4.6.3",
     "pytest>=9.1.1",
