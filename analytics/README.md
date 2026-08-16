@@ -4,10 +4,11 @@ Python workspace for analysing transaction data exported from the Finance
 Analytics Android application. This is the analytics **foundation**: CSV
 loading, schema validation, data-quality reporting, DuckDB querying,
 exploratory data analysis of transaction behaviour (temporal, category,
-merchant, outlier and recurring-transaction candidates), and a first
-analytical feature — transaction anomaly detection, a non-ML, deterministic
-baseline (see `src/finance_analytics/anomalies/`). It does not implement
-machine learning, forecasting, or any other insight generation — see
+merchant, outlier and recurring-transaction candidates), and two analytical
+features — transaction anomaly detection (`src/finance_analytics/anomalies/`)
+and recurring-transaction detection (`src/finance_analytics/recurring/`),
+both non-ML, deterministic baselines. It does not implement machine
+learning, forecasting, or any other insight generation — see
 [Out of scope](#out-of-scope).
 
 This workspace is independent from the Android application: no shared code,
@@ -30,8 +31,10 @@ intentionally **not** a dependency of this workspace yet — no ML is
 implemented, and adding it now would be an unused dependency.
 `sklearn.ensemble.IsolationForest` was considered for anomaly detection and
 rejected: the available fixture (18 clean transactions) is far too small to
-train or validate a model against. Scikit-learn will be added in the PR
-that first has enough data to justify a model.
+train or validate a model against. Recurring-transaction detection (PR-010)
+made the same call for the same reason — no merchant in the fixture has
+more than 2 occurrences. Scikit-learn will be added in the PR that first
+has enough data to justify a model.
 
 ## Project layout
 
@@ -41,7 +44,8 @@ analytics/
 ├── notebooks/
 │   ├── 01_data_quality_and_overview.ipynb
 │   ├── 02_exploratory_data_analysis.ipynb
-│   └── 03_anomaly_detection.ipynb
+│   ├── 03_anomaly_detection.ipynb
+│   └── 04_recurring_transactions.ipynb
 ├── src/finance_analytics/
 │   ├── io/csv.py             CSV → DataFrame loading
 │   ├── validation/transactions.py   Schema validation
@@ -53,10 +57,15 @@ analytics/
 │   │   ├── category.py        Category-level aggregation
 │   │   ├── merchant.py        Merchant-level aggregation
 │   │   ├── outliers.py        IQR / robust z-score / category-relative outlier flags
-│   │   └── recurring.py       Recurring-transaction candidate table
-│   └── anomalies/              Transaction anomaly detection (PR-009)
-│       ├── features.py         Historical, leakage-free merchant/category/global stats
-│       ├── detector.py         AnomalyResult + hierarchical robust-z detection
+│   │   └── recurring.py       Recurring-transaction candidate table (exploratory, PR-008)
+│   ├── anomalies/              Transaction anomaly detection (PR-009)
+│   │   ├── features.py         Historical, leakage-free merchant/category/global stats
+│   │   ├── detector.py         AnomalyResult + hierarchical robust-z detection
+│   │   └── explanations.py     Deterministic, template-based explanation text
+│   └── recurring/               Recurring-transaction detection (PR-010)
+│       ├── features.py         Per-merchant candidate aggregation (occurrences, amount/interval stats)
+│       ├── scoring.py           Confidence-score signals + frequency banding
+│       ├── detector.py          RecurringResult + classification thresholds
 │       └── explanations.py     Deterministic, template-based explanation text
 ├── tests/                    pytest suite (+ tests/fixtures/ CSVs)
 └── data/
@@ -104,7 +113,7 @@ cd analytics
 uv run jupyter lab
 ```
 
-All three notebooks load `data/raw/finance_analytics_test_transactions.csv`
+All four notebooks load `data/raw/finance_analytics_test_transactions.csv`
 — a synthetic fixture that includes a duplicate transaction and a few
 deliberately invalid rows so the validation and data-quality steps have
 something to report.
@@ -123,6 +132,14 @@ something to report.
   it on the clean fixture with controlled synthetic validation cases and a
   false-positive inspection. See its "Limitations" section — the same
   18-row dataset limits what this result generalises to.
+- `notebooks/04_recurring_transactions.ipynb` — applies notebook 02's
+  recurring-transaction findings (RQ5) to a deterministic recurring-payment
+  classifier (`finance_analytics.recurring`), with controlled synthetic
+  validation cases (a clear subscription, a frequent-but-irregular
+  merchant, a coincidental-amount stress test) and a false-positive
+  inspection. See its "Limitations" section — the same 18-row dataset means
+  no real merchant here reaches the "Recurring" tier; that tier is only
+  demonstrated synthetically.
 
 To reproduce non-interactively:
 
@@ -131,6 +148,7 @@ cd analytics
 uv run jupyter execute --inplace notebooks/01_data_quality_and_overview.ipynb
 uv run jupyter execute --inplace notebooks/02_exploratory_data_analysis.ipynb
 uv run jupyter execute --inplace notebooks/03_anomaly_detection.ipynb
+uv run jupyter execute --inplace notebooks/04_recurring_transactions.ipynb
 ```
 
 ## Reproducibility
@@ -182,16 +200,33 @@ uv run jupyter lab      open notebooks
   template-based: the same input always produces the same sentence, and the
   sentence always names the specific baseline (merchant/category/global)
   the score came from.
+- **Recurring detection is rule-based, not ML.** `recurring/detector.py`
+  classifies each merchant (Recurring / Possible recurring / Not recurring /
+  Insufficient history) from a confidence score that blends interval
+  consistency, amount consistency, occurrence count and history span
+  (`recurring/scoring.py`) against explicit, EDA-justified thresholds. A
+  candidate can only reach "Recurring" with at least 3 occurrences — with
+  exactly 2, interval *variation* is structurally uncomputable (one
+  interval), so PR-008's EDA finding that "consistency needs at least 3
+  occurrences" is enforced as a hard floor, not just a scoring input. See
+  `notebooks/04_recurring_transactions.ipynb` for the full rationale and a
+  documented false-positive limitation.
+- **`recurring/` and `anomalies/` are independent.** Neither module imports
+  the other. PR-010 explicitly defers the combined "recurring payment with
+  an anomalous amount" insight to future work.
+- **No LLM in recurring explanations.** `recurring/explanations.py` is
+  template-based, same convention as `anomalies/explanations.py`.
 
 ## Out of scope
 
-Not implemented in this workspace (see PR-007/PR-008/PR-009 for the full
-list): general machine learning, forecasting, clustering, fraud detection,
-financial advice, the final recurring-payment detector, merchant
-normalisation, automated categorisation, LLM-generated insights,
-recommendations, production dashboard analytics, Android/Python runtime
-integration, backend/API, cloud data storage. Anomaly detection itself is
-now implemented, but only as an analytical result — see
-`anomalies/detector.py`'s docstring and notebook 03's "Out of Scope —
-Confirmation" section for what it deliberately does not do (persistence,
+Not implemented in this workspace (see PR-007/PR-008/PR-009/PR-010 for the
+full list): general machine learning, forecasting, clustering, fraud
+detection, financial advice, a full merchant-normalisation system,
+automated categorisation, LLM-generated insights, recommendations,
+production dashboard analytics, Android/Python runtime integration,
+backend/API, cloud data storage, and the combined recurring+anomaly
+insight. Anomaly detection and recurring-transaction detection are both
+implemented, but only as analytical results — see `anomalies/detector.py` /
+`recurring/detector.py`'s docstrings and notebooks 03 / 04's "Out of Scope —
+Confirmation" sections for what they deliberately do not do (persistence,
 Android display, production API).
