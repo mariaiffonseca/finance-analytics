@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Debug-only: permits cleartext (plain HTTP) traffic so the app can reach the
+local Analytics API dev server (see android/README.md — 10.0.2.2 default,
+or a LAN IP via local.properties). Scoped to the debug source set so release
+builds keep the platform default (cleartext blocked), per PR-014 §17
+("Use HTTPS for non-local environments").
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
