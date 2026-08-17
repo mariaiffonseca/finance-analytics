@@ -162,6 +162,11 @@ def run_analysis(request: AnalysisRequest) -> AnalysisResponse:
     if not structural_check.is_valid:
         raise TransactionValidationError(structural_check)
 
+    # Duplicate counts must come from the pre-dedup frame: `duplicate_id_count`
+    # and `duplicate_row_count` are otherwise structurally guaranteed to be 0
+    # once computed on the already-deduplicated frame below.
+    pre_dedup_quality = build_quality_report(frame)
+
     deduplicated = frame.drop_duplicates(subset=["id"]).copy()
     deduplicated["id"] = deduplicated["id"].astype(str)
 
@@ -183,8 +188,8 @@ def run_analysis(request: AnalysisRequest) -> AnalysisResponse:
         metadata=AnalysisMetadata(
             requested_transaction_count=len(request.transactions),
             processed_transaction_count=len(deduplicated),
-            duplicate_row_count=quality.duplicate_row_count,
-            duplicate_id_count=quality.duplicate_id_count,
+            duplicate_row_count=pre_dedup_quality.duplicate_row_count,
+            duplicate_id_count=pre_dedup_quality.duplicate_id_count,
             invalid_date_count=quality.invalid_date_count,
             invalid_amount_count=quality.invalid_amount_count,
             insight_count=len(insights),

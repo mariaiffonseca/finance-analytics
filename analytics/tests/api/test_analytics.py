@@ -146,6 +146,8 @@ def test_duplicate_transaction_ids_are_deduplicated(client: TestClient) -> None:
     assert body["summary"]["transaction_count"] == 1
     assert body["metadata"]["requested_transaction_count"] == 2
     assert body["metadata"]["processed_transaction_count"] == 1
+    assert body["metadata"]["duplicate_id_count"] == 1
+    assert body["metadata"]["duplicate_row_count"] == 1
 
 
 # --- Error responses do not leak internals --------------------------------
