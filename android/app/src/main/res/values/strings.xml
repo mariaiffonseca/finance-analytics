@@ -49,5 +49,17 @@
     <string name="insight_filter_anomalies">Anomalies</string>
     <string name="insight_filter_recurring">Recurring</string>
 
+    <string name="analytics_summary_total_spent">TOTAL SPENT</string>
+    <string name="analytics_section_insights">Insights</string>
+    <string name="analytics_section_anomalies">Anomalies</string>
+    <string name="analytics_section_recurring">Recurring</string>
+    <string name="analytics_no_insights">No insights yet.</string>
+    <string name="analytics_no_anomalies">No anomalies detected.</string>
+    <string name="analytics_no_recurring">No recurring transactions detected.</string>
+    <string name="analytics_unavailable_title">Analytics unavailable</string>
+    <string name="analytics_unavailable_message">Couldn\'t reach the analytics service. Your imported transactions are still available in the Transactions tab.</string>
+    <string name="analytics_error_title">Analytics request failed</string>
+    <string name="analytics_error_message">Something went wrong analysing your transactions. Please try again.</string>
+
     <string name="transactions_placeholder_message">Your transactions will appear here once you import data.</string>
 </resources>
