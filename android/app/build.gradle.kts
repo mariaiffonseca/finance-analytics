@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -6,6 +7,22 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+}
+
+// Local-development Analytics API base URL (PR-014 §14). Defaults to the
+// Android emulator's alias for the host machine's loopback interface, since
+// the FastAPI dev server binds 127.0.0.1:8000 by default (see
+// analytics/README.md). Override per-machine — e.g. a physical device needs
+// the host's LAN IP instead of 10.0.2.2 — via ANALYTICS_API_BASE_URL in the
+// gitignored android/local.properties. Never a production URL: PR-013's API
+// has no deployed/production instance yet.
+fun analyticsApiBaseUrl(): String {
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { localProperties.load(it) }
+    }
+    return localProperties.getProperty("ANALYTICS_API_BASE_URL") ?: "http://10.0.2.2:8000/"
 }
 
 android {
@@ -20,6 +37,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "ANALYTICS_API_BASE_URL", "\"${analyticsApiBaseUrl()}\"")
     }
 
     buildTypes {
@@ -85,6 +104,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
 
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
