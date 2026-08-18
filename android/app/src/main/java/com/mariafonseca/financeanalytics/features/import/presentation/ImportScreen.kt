@@ -69,6 +69,7 @@ fun ImportScreen(
                     // check after selection is the real gate, not the picker filter.
                     onChooseFile = { pickFile.launch("*/*") },
                     onBack = onBack,
+                    onSkip = onSkip,
                 )
                 is ImportUiState.Reading -> ProgressContent(R.string.import_reading, state.fileName, onBack)
                 is ImportUiState.Validating -> ProgressContent(R.string.import_validating, state.fileName, onBack)
@@ -90,7 +91,7 @@ fun ImportScreen(
 }
 
 @Composable
-private fun SelectFileContent(onChooseFile: () -> Unit, onBack: () -> Unit) {
+private fun SelectFileContent(onChooseFile: () -> Unit, onBack: () -> Unit, onSkip: () -> Unit) {
     val colors = LocalFinanceColors.current
     Text(text = stringResource(R.string.import_title), style = MaterialTheme.typography.headlineSmall)
     Text(text = stringResource(R.string.import_body), style = MaterialTheme.typography.bodyLarge, color = colors.textSecondary)
@@ -99,6 +100,13 @@ private fun SelectFileContent(onChooseFile: () -> Unit, onBack: () -> Unit) {
     }
     OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), shape = SquareShape) {
         Text(text = stringResource(R.string.action_back))
+    }
+    // Escape hatch for a user who wants to explore the app before importing
+    // anything — already wired end to end (FinanceAnalyticsNavHost's onSkip
+    // deliberately skips onImportCompleted() so AppDataState stays NoData),
+    // but was only reachable from the Failed state until now.
+    OutlinedButton(onClick = onSkip, modifier = Modifier.fillMaxWidth(), shape = SquareShape) {
+        Text(text = stringResource(R.string.action_skip_import))
     }
 }
 
