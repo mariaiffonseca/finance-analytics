@@ -487,6 +487,12 @@ The amount is visually dominant.
 
 Use `surfaceElevated` for the sheet.
 
+"Recurring status" is deferred: the local `Transaction` domain model has no
+link back to an analytics `RecurringTransaction` result (that result is keyed
+by merchant/currency, not by transaction id), so showing it would mean
+inventing data rather than reflecting what the domain supports (PR-015 §6).
+Add the row once that link exists.
+
 ---
 
 # 20. Category Analytics

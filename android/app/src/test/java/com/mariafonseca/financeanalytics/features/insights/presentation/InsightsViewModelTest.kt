@@ -7,6 +7,7 @@ import com.mariafonseca.financeanalytics.core.analytics.model.AnalyticsResult
 import com.mariafonseca.financeanalytics.core.analytics.model.AnalyticsSummary
 import com.mariafonseca.financeanalytics.core.analytics.model.AnalyticsUiState
 import com.mariafonseca.financeanalytics.core.common.Money
+import com.mariafonseca.financeanalytics.core.testing.FakeAnalyticsRepository
 import com.mariafonseca.financeanalytics.core.testing.FakeTransactionRepository
 import com.mariafonseca.financeanalytics.features.transactions.model.Transaction
 import kotlinx.coroutines.Dispatchers
@@ -189,16 +190,4 @@ class InsightsViewModelTest {
         transactionRepository: FakeTransactionRepository = FakeTransactionRepository(),
         analyticsRepository: AnalyticsRepository = FakeAnalyticsRepository(result = { Result.success(successResult) }),
     ): InsightsViewModel = InsightsViewModel(transactionRepository, analyticsRepository)
-}
-
-private class FakeAnalyticsRepository(
-    var result: () -> Result<AnalyticsResult>,
-) : AnalyticsRepository {
-    var callCount = 0
-        private set
-
-    override suspend fun analyse(transactions: List<Transaction>): Result<AnalyticsResult> {
-        callCount++
-        return result()
-    }
 }

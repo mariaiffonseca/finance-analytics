@@ -21,3 +21,25 @@ sealed interface AnalyticsUiState {
     data object Unavailable : AnalyticsUiState
     data object Error : AnalyticsUiState
 }
+
+/**
+ * Shared `Result<AnalyticsResult>` -> [AnalyticsUiState] mapping, used by
+ * every ViewModel that triggers an analytics request (InsightsViewModel,
+ * OverviewViewModel) so the Unavailable/Error distinction stays consistent
+ * across screens instead of being reimplemented per ViewModel.
+ */
+fun Result<AnalyticsResult>.toAnalyticsUiState(): AnalyticsUiState {
+    getOrNull()?.let { return AnalyticsUiState.Success(it) }
+    val reason = (exceptionOrNull() as? AnalyticsApiException)?.reason ?: AnalyticsFailureReason.UNEXPECTED
+    return when (reason) {
+        AnalyticsFailureReason.NO_CONNECTION,
+        AnalyticsFailureReason.TIMEOUT,
+        AnalyticsFailureReason.SERVER_ERROR,
+        -> AnalyticsUiState.Unavailable
+
+        AnalyticsFailureReason.CLIENT_ERROR,
+        AnalyticsFailureReason.INVALID_RESPONSE,
+        AnalyticsFailureReason.UNEXPECTED,
+        -> AnalyticsUiState.Error
+    }
+}

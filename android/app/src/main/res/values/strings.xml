@@ -41,6 +41,12 @@
     <string name="tab_transactions">Transactions</string>
 
     <string name="overview_placeholder_message">Your spending overview will appear here once you import transactions.</string>
+    <string name="overview_income_label">INCOME</string>
+    <string name="overview_saved_label">SAVED</string>
+    <string name="overview_top_insight_label">TOP INSIGHT</string>
+    <string name="overview_more_insights_label">MORE INSIGHTS</string>
+    <string name="overview_spending_trend_label">SPENDING TREND</string>
+    <string name="overview_category_breakdown_label">CATEGORY BREAKDOWN</string>
 
     <string name="insights_placeholder_message">Insights will appear here once you import transactions.</string>
     <string name="insight_filter_recent">Recent</string>
@@ -56,10 +62,17 @@
     <string name="analytics_no_insights">No insights yet.</string>
     <string name="analytics_no_anomalies">No anomalies detected.</string>
     <string name="analytics_no_recurring">No recurring transactions detected.</string>
+    <string name="analytics_no_filtered_insights">No insights match this filter.</string>
     <string name="analytics_unavailable_title">Analytics unavailable</string>
     <string name="analytics_unavailable_message">Couldn\'t reach the analytics service. Your imported transactions are still available in the Transactions tab.</string>
     <string name="analytics_error_title">Analytics request failed</string>
     <string name="analytics_error_message">Something went wrong analysing your transactions. Please try again.</string>
 
     <string name="transactions_placeholder_message">Your transactions will appear here once you import data.</string>
+    <string name="transactions_search_placeholder">Search transactions</string>
+    <string name="transaction_filter_all">All</string>
+    <string name="transactions_no_results">No transactions match your search.</string>
+    <string name="transaction_detail_date_label">Date</string>
+    <string name="transaction_detail_category_label">Category</string>
+    <string name="transaction_detail_uncategorised">Uncategorised</string>
 </resources>

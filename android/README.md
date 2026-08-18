@@ -25,9 +25,11 @@ cd android
 ## Analytics API (PR-014)
 
 The app talks to the Analytics API from PR-013
-(`analytics/src/finance_analytics/api`) over HTTP for the Insights screen.
-Nothing else in the app depends on it — local transaction import, storage
-and browsing all work without the API running (see
+(`analytics/src/finance_analytics/api`) over HTTP for the Insights screen
+and the Overview dashboard's Top/More Insights section. Everything else —
+local transaction import, storage, the Overview dashboard's totals/
+category breakdown/spending trend (computed from local data), and
+Transaction browsing — works without the API running (see
 `docs/execution/07_ANDROID_INTEGRATION/PR-014_ANDROID_ANALYTICS_API_INTEGRATION.md`).
 
 Run the API locally first (see `analytics/README.md`):
