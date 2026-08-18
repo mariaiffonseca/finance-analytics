@@ -104,6 +104,8 @@ fun OverviewContent(uiState: OverviewUiState, onRetryAnalysis: () -> Unit) {
             if (overview.categoryBreakdown.isNotEmpty()) {
                 CategoryBreakdownSection(overview.categoryBreakdown)
             }
+
+            MoreInsightsSection(uiState.analyticsState)
         }
     }
 }
@@ -148,7 +150,7 @@ private fun InsightsPreviewSection(analyticsState: AnalyticsUiState, onRetryAnal
             Spacer(modifier = Modifier.width(Space8))
             Text(text = stringResource(R.string.tab_insights), style = MaterialTheme.typography.titleLarge)
         }
-        is AnalyticsUiState.Success -> InsightsPreviewContent(analyticsState.result.insights)
+        is AnalyticsUiState.Success -> TopInsightContent(analyticsState.result.insights)
         AnalyticsUiState.Unavailable -> InsightsPreviewUnavailable(
             titleRes = R.string.analytics_unavailable_title,
             messageRes = R.string.analytics_unavailable_message,
@@ -163,7 +165,7 @@ private fun InsightsPreviewSection(analyticsState: AnalyticsUiState, onRetryAnal
 }
 
 @Composable
-private fun InsightsPreviewContent(insights: List<Insight>) {
+private fun TopInsightContent(insights: List<Insight>) {
     val colors = LocalFinanceColors.current
     if (insights.isEmpty()) {
         Text(text = stringResource(R.string.analytics_no_insights), style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary)
@@ -175,17 +177,26 @@ private fun InsightsPreviewContent(insights: List<Insight>) {
     val topInsight = insights.first()
     Text(text = topInsight.title, style = MaterialTheme.typography.titleLarge)
     Text(text = topInsight.description, style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary)
+}
 
-    val remaining = insights.drop(1)
-    if (remaining.isNotEmpty()) {
-        Spacer(modifier = Modifier.height(Space24))
-        Text(text = stringResource(R.string.overview_more_insights_label), style = MaterialTheme.typography.labelSmall, color = colors.textSecondary)
-        Spacer(modifier = Modifier.height(Space8))
-        remaining.forEach { insight ->
-            Text(text = insight.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-            Text(text = insight.description, style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary)
-            Spacer(modifier = Modifier.height(Space12))
-        }
+/**
+ * Rendered last, after the trend/breakdown charts (docs/project/05_DESIGN_SYSTEM.md
+ * §16, items 6-8: spending trend and category breakdown come before "more
+ * insights") — only [TopInsightContent] renders above the charts.
+ */
+@Composable
+private fun MoreInsightsSection(analyticsState: AnalyticsUiState) {
+    val remaining = (analyticsState as? AnalyticsUiState.Success)?.result?.insights?.drop(1).orEmpty()
+    if (remaining.isEmpty()) return
+
+    val colors = LocalFinanceColors.current
+    Spacer(modifier = Modifier.height(Space24))
+    Text(text = stringResource(R.string.overview_more_insights_label), style = MaterialTheme.typography.labelSmall, color = colors.textSecondary)
+    Spacer(modifier = Modifier.height(Space8))
+    remaining.forEach { insight ->
+        Text(text = insight.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+        Text(text = insight.description, style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary)
+        Spacer(modifier = Modifier.height(Space12))
     }
 }
 
