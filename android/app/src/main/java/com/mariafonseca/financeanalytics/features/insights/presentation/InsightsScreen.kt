@@ -37,11 +37,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mariafonseca.financeanalytics.R
 import com.mariafonseca.financeanalytics.core.analytics.model.Anomaly
-import com.mariafonseca.financeanalytics.core.analytics.model.AnalyticsResult
 import com.mariafonseca.financeanalytics.core.analytics.model.AnalyticsSummary
 import com.mariafonseca.financeanalytics.core.analytics.model.AnalyticsUiState
 import com.mariafonseca.financeanalytics.core.analytics.model.Insight
 import com.mariafonseca.financeanalytics.core.analytics.model.RecurringTransaction
+import com.mariafonseca.financeanalytics.core.common.formatMajorUnits
 import com.mariafonseca.financeanalytics.core.designsystem.FinanceColors
 import com.mariafonseca.financeanalytics.core.designsystem.LocalFinanceColors
 import com.mariafonseca.financeanalytics.core.designsystem.Space12
@@ -49,8 +49,6 @@ import com.mariafonseca.financeanalytics.core.designsystem.Space24
 import com.mariafonseca.financeanalytics.core.designsystem.Space8
 import com.mariafonseca.financeanalytics.core.designsystem.component.FinanceFilterChip
 import org.koin.androidx.compose.koinViewModel
-import java.util.Locale
-import kotlin.math.abs
 
 @Composable
 fun InsightsScreen(viewModel: InsightsViewModel = koinViewModel()) {
@@ -115,7 +113,10 @@ fun InsightsContent(
                 color = colors.textSecondary,
             )
             AnalyticsUiState.Loading -> LoadingContent()
-            is AnalyticsUiState.Success -> AnalyticsContent(analyticsState.result)
+            is AnalyticsUiState.Success -> AnalyticsContent(
+                view = analyticsState.result.viewFor(uiState.selectedFilter),
+                isFiltered = uiState.selectedFilter != InsightFilter.RECENT,
+            )
             AnalyticsUiState.Unavailable -> AnalyticsMessageContent(
                 titleRes = R.string.analytics_unavailable_title,
                 messageRes = R.string.analytics_unavailable_message,
@@ -170,13 +171,29 @@ private fun AnalyticsMessageContent(
     }
 }
 
+/**
+ * Renders one filtered [InsightsView] (PR-015 §7). A `null` section is
+ * excluded from a narrow filter (Spending/Trends/Anomalies/Recurring) and
+ * is not rendered at all; when every included section has no data, a
+ * single combined empty state is shown instead of stacking each section's
+ * own empty message — the Recent/all view (`isFiltered = false`) keeps the
+ * original per-section empty messages, since there each section is always
+ * relevant regardless of what the others contain.
+ */
 @Composable
-private fun AnalyticsContent(result: AnalyticsResult) {
+private fun AnalyticsContent(view: InsightsView, isFiltered: Boolean) {
+    val visibleSections = listOfNotNull(view.insights, view.anomalies, view.recurring)
+    val filteredResultsAreEmpty = isFiltered && visibleSections.all { it.isEmpty() }
+
     Column(verticalArrangement = Arrangement.spacedBy(Space24)) {
-        SummarySection(result.summary)
-        InsightsSection(result.insights)
-        AnomaliesSection(result.anomalies)
-        RecurringSection(result.recurring)
+        SummarySection(view.summary)
+        if (filteredResultsAreEmpty) {
+            EmptySectionMessage(R.string.analytics_no_filtered_insights)
+        } else {
+            view.insights?.let { InsightsSection(it) }
+            view.anomalies?.let { AnomaliesSection(it) }
+            view.recurring?.let { RecurringSection(it) }
+        }
     }
 }
 
@@ -190,7 +207,7 @@ private fun SummarySection(summary: AnalyticsSummary) {
             color = colors.textSecondary,
         )
         Text(
-            text = formatAmount(abs(summary.totalExpenses)),
+            text = formatMajorUnits(summary.totalExpenses),
             style = MaterialTheme.typography.titleLarge,
         )
     }
@@ -278,7 +295,7 @@ private fun RecurringSection(recurring: List<RecurringTransaction>) {
                         Text(text = item.classification, style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary)
                     }
                     item.medianAmount?.let { amount ->
-                        Text(text = formatAmount(abs(amount)), style = MaterialTheme.typography.bodyLarge)
+                        Text(text = formatMajorUnits(amount), style = MaterialTheme.typography.bodyLarge)
                     }
                 }
                 HorizontalDivider(color = colors.divider)
@@ -292,10 +309,3 @@ private fun EmptySectionMessage(@StringRes messageRes: Int) {
     val colors = LocalFinanceColors.current
     Text(text = stringResource(messageRes), style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary)
 }
-
-// Simple two-decimal formatting, not locale/currency-aware: the API's
-// AnalysisSummary carries no currency field, and the domain Transaction has
-// no per-transaction currency yet either (see AnalyticsRequestMapper.kt).
-// Full currency/locale-aware formatting is deferred to the currency setting
-// (docs/project/05_DESIGN_SYSTEM.md section 26), still a placeholder screen.
-private fun formatAmount(value: Double): String = String.format(Locale.US, "%.2f", value)
