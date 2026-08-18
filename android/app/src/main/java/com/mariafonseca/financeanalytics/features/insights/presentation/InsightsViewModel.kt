@@ -3,10 +3,8 @@ package com.mariafonseca.financeanalytics.features.insights.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mariafonseca.financeanalytics.core.analytics.AnalyticsRepository
-import com.mariafonseca.financeanalytics.core.analytics.model.AnalyticsApiException
-import com.mariafonseca.financeanalytics.core.analytics.model.AnalyticsFailureReason
-import com.mariafonseca.financeanalytics.core.analytics.model.AnalyticsResult
 import com.mariafonseca.financeanalytics.core.analytics.model.AnalyticsUiState
+import com.mariafonseca.financeanalytics.core.analytics.model.toAnalyticsUiState
 import com.mariafonseca.financeanalytics.features.transactions.data.TransactionRepository
 import com.mariafonseca.financeanalytics.features.transactions.model.Transaction
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,21 +59,5 @@ class InsightsViewModel(
         _uiState.update { it.copy(analyticsState = AnalyticsUiState.Loading) }
         val result = analyticsRepository.analyse(transactions)
         _uiState.update { it.copy(analyticsState = result.toAnalyticsUiState()) }
-    }
-}
-
-private fun Result<AnalyticsResult>.toAnalyticsUiState(): AnalyticsUiState {
-    getOrNull()?.let { return AnalyticsUiState.Success(it) }
-    val reason = (exceptionOrNull() as? AnalyticsApiException)?.reason ?: AnalyticsFailureReason.UNEXPECTED
-    return when (reason) {
-        AnalyticsFailureReason.NO_CONNECTION,
-        AnalyticsFailureReason.TIMEOUT,
-        AnalyticsFailureReason.SERVER_ERROR,
-        -> AnalyticsUiState.Unavailable
-
-        AnalyticsFailureReason.CLIENT_ERROR,
-        AnalyticsFailureReason.INVALID_RESPONSE,
-        AnalyticsFailureReason.UNEXPECTED,
-        -> AnalyticsUiState.Error
     }
 }
